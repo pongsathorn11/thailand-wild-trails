@@ -1,5 +1,7 @@
 # Thailand Wild Trails (Phaser 3 + TypeScript)
 
+**Play:** https://pongsathorn11.github.io/thailand-wild-trails/
+
 The real build of the game. The single-file prototype in `../thailand-wild-trails/knowledge/game.html`
 (v1.1, also published as a claude.ai artifact) is the reference for how everything should play;
 this project ports it system by system into separate, tested modules.
@@ -50,7 +52,7 @@ Rules of the codebase (from the original brief, section 22):
 | M7 Polish | touch controls, sound effects, generative music, phone layout | ✅ |
 | M8a Online | Supabase accounts (email + password, guest), cloud save that never loses progress, per-trail leaderboard written only through a validating database function | ✅ |
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
-| M9 Hosting | put the game (static) and the co-op server online (needs a host: e.g. Fly.io / Render / a VPS), `wss://` + origin allow-list | next |
+| M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · server: connect once in Render |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.
 
@@ -86,3 +88,22 @@ same trail and starts hiking. Up to 4 per room; the room picks the weather for e
 - Body stats (stamina, food, warmth), items, photos and quests stay per player, as in single-player.
 
 `VITE_COOP_URL` in `.env` says where the server is (`ws://localhost:2567` now; `wss://…` once hosted).
+## Hosting
+
+| Part | Where | How it updates |
+|---|---|---|
+| Game (static) | GitHub Pages: https://pongsathorn11.github.io/thailand-wild-trails/ | `.github/workflows/pages.yml` runs the tests, builds and deploys on every push to `main` |
+| Co-op server | Render free web service `thailand-wild-trails-coop` (Singapore) | `render.yaml` blueprint; Render redeploys on every push to `main` |
+| Accounts, saves, leaderboard | Supabase project `thailand-wild-trails` | SQL in `supabase/migrations/` |
+
+`.env.production` points the built game at `wss://thailand-wild-trails-coop.onrender.com`. If Render gives the service a
+different address, change it there and push. The server only accepts WebSocket connections from
+`https://pongsathorn11.github.io` (`COOP_ORIGINS` in `render.yaml`).
+
+One-time steps in the dashboards (they can't be done from code):
+
+1. **Render:** open https://render.com/deploy?repo=https://github.com/pongsathorn11/thailand-wild-trails, sign in, and approve the blueprint.
+   On the free plan the server sleeps after ~15 min without players, so the first co-op join after a pause takes about a minute.
+2. **Supabase → Authentication → URL Configuration:** Site URL `https://pongsathorn11.github.io/thailand-wild-trails/`, and add it
+   (plus `http://localhost:5173` for development) to Redirect URLs, so sign-up confirmation links come back to the game.
+3. Optional, **Supabase → Authentication → Sign In / Providers:** allow anonymous sign-ins for the "Play as guest" button.

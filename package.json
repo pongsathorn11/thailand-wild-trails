@@ -1,0 +1,33 @@
+{
+  "name": "thailand-wild-trails",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Thailand Wild Trails: pixel-art hiking, camping and national park collecting game (Phaser 3 + TypeScript)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && tsc --noEmit -p server && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p server",
+    "extract-strings": "node tools/extract-strings.mjs",
+    "coop": "tsx --env-file=.env server/coop-server.ts",
+    "coop:dev": "tsx watch --env-file=.env server/coop-server.ts",
+    "coop:start": "tsx server/coop-server.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "phaser": "^3.87.0",
+    "ws": "^8.23.0",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

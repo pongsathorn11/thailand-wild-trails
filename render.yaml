@@ -1,0 +1,22 @@
+# Render Blueprint for the co-op game server (Render dashboard → New → Blueprint → pick this repo).
+services:
+  - type: web
+    name: thailand-wild-trails-coop
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci
+    startCommand: npm run coop:start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # only the published game may open WebSocket connections
+      - key: COOP_ORIGINS
+        value: https://pongsathorn11.github.io
+      # used to check players' sign-in tokens (public values, same as in .env)
+      - key: VITE_SUPABASE_URL
+        value: https://jfheyrdoxvhjhtlpjccv.supabase.co
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_2J848sdmMd-j-F3Bp9FLpA_pQQLUjfm

@@ -1,0 +1,53 @@
+/**
+ * Strings that exist only while the port is in progress (they override the extracted prototype text).
+ * Remove each one when the system it describes is ported.
+ */
+export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
+  th: {
+    port_restart: 'Enter กลับแคมป์',
+    port_camp_controls: 'WASD เดิน · Shift วิ่ง · E โต้ตอบ · Q เปลี่ยนเมล็ด · B โหมดตกแต่ง · K ทักษะ · J สมุดบันทึก · O ออนไลน์ · M เสียง · N เพลง · Esc หน้าแรก',
+    port_go: 'ออกเดินป่า ›',
+    pack_keys: '↑↓ เลือก · ←→ จำนวน · Enter ออกเดิน · Esc กลับแคมป์ · คลิก ◀ ▶ ได้',
+    controls: 'WASD/ลูกศร เดิน · Shift วิ่ง · E โต้ตอบ · 1–9 0 - = ใช้ของในเป้ (หรือคลิกช่อง) · M เสียง · N เพลง',
+    // online (M8)
+    on_title: '☁️ ออนไลน์', on_tab_account: 'บัญชี', on_tab_board: '🏆 อันดับ',
+    on_off: 'ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ เล่นแบบออฟไลน์ได้ตามปกติ', on_signedOut: 'ยังไม่ได้เข้าสู่ระบบ · เซฟอยู่ในเครื่องนี้เท่านั้น',
+    on_signedIn: 'เข้าสู่ระบบแล้ว: {e}', on_guest: 'ผู้เยี่ยมชม (เซฟผูกกับเบราว์เซอร์นี้)',
+    on_synced: '☁️ ซิงค์ล่าสุด {t}', on_syncing: 'กำลังซิงค์…', on_pulled: 'โหลดเซฟจากคลาวด์แล้ว (ไปได้ไกลกว่า)', on_pushed: 'อัปโหลดเซฟขึ้นคลาวด์แล้ว',
+    on_email: 'อีเมล', on_password: 'รหัสผ่าน (อย่างน้อย 6 ตัว)', on_signIn: 'เข้าสู่ระบบ', on_signUp: 'สมัครใหม่', on_guestBtn: 'เล่นแบบผู้เยี่ยมชม',
+    on_signOut: 'ออกจากระบบ', on_syncNow: 'ซิงค์ตอนนี้', on_checkMail: 'ส่งอีเมลยืนยันแล้ว กดลิงก์ในอีเมลแล้วกลับมาเข้าสู่ระบบ',
+    on_err: '⚠️ {m}', on_guestOff: 'ยังไม่ได้เปิดการเล่นแบบผู้เยี่ยมชมบนเซิร์ฟเวอร์ ใช้อีเมลแทนได้',
+    on_note: 'เซฟจะรวมกันอัตโนมัติ: เก็บเซฟที่ไปได้ไกลกว่าเสมอ ไม่มีวันลบความคืบหน้า',
+    on_boardEmpty: 'ยังไม่มีใครส่งเวลา — เป็นคนแรกเลย!', on_boardMe: 'คุณ', on_boardHint: 'เวลาที่เร็วที่สุดของแต่ละเส้นทาง (เข้าสู่ระบบเพื่อส่งเวลาของคุณ)',
+    coop_tab: '🤝 เดินด้วยกัน', coop_noServer: 'ยังไม่ได้ตั้งค่าเกมเซิร์ฟเวอร์ (VITE_COOP_URL)', coop_inPlan: 'เดินป่าครั้งต่อไปจะเข้าห้องนี้ บอกรหัสให้เพื่อน:',
+    coop_leavePlan: 'เลิกเดินด้วยกัน', coop_create: 'สร้างห้องใหม่', coop_join: 'เข้าห้อง', coop_code: 'รหัสห้องของเพื่อน (4 ตัว)', coop_badCode: 'รหัสห้องต้องเป็นตัวอักษร/ตัวเลข 4 ตัว',
+    coop_how: 'เลือกเส้นทางเดียวกับเพื่อนแล้วกดออกเดินป่า ห้องละไม่เกิน 4 คน เซิร์ฟเวอร์เป็นคนขยับทุกคน จึงโกงความเร็วหรือทะลุกำแพงไม่ได้',
+    coop_needSignIn: 'ต้องเข้าสู่ระบบก่อน (แท็บบัญชี) จึงจะเข้าห้องได้', coop_joining: 'กำลังเข้าห้อง {r}…', coop_room_badge: '🤝 ห้อง {r}: เพื่อนต้องเลือกเส้นทางนี้ด้วย',
+    coop_err_full: '⚠️ ห้องเต็มแล้ว (4 คน)', coop_err_auth: '⚠️ ต้องเข้าสู่ระบบก่อนเดินด้วยกัน (กด O)', coop_err_no_server: '⚠️ ยังไม่ได้ตั้งค่าเกมเซิร์ฟเวอร์', coop_err_connect: '⚠️ ต่อเกมเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
+    coop_joined: '🤝 {n} มาเดินด้วยแล้ว', coop_left: '👋 {n} ออกจากห้อง', coop_inRoom: '🤝 ห้อง {r} · ในห้อง {n} คน',
+    on_rank: 'อันดับ', on_name: 'ชื่อ', on_time: 'เวลา', on_close: 'ปิด', on_loading: 'กำลังโหลด…', on_hiker: 'นักเดินทาง',
+  },
+  en: {
+    port_restart: 'Enter return to camp',
+    port_camp_controls: 'WASD walk · Shift run · E interact · Q change seed · B decorate mode · K skills · J journal · O online · M sound · N music · Esc title',
+    port_go: 'Start hiking ›',
+    pack_keys: '↑↓ select · ←→ amount · Enter go · Esc back to camp · or click ◀ ▶',
+    controls: 'WASD/Arrows walk · Shift run · E interact · 1–9 0 - = use backpack item (or click a slot) · M sound · N music',
+    on_title: '☁️ Online', on_tab_account: 'Account', on_tab_board: '🏆 Leaderboard',
+    on_off: 'No server configured. Offline play works as usual.', on_signedOut: 'Not signed in · saves stay on this device',
+    on_signedIn: 'Signed in: {e}', on_guest: 'Guest (save tied to this browser)',
+    on_synced: '☁️ Last sync {t}', on_syncing: 'Syncing…', on_pulled: 'Loaded the cloud save (it got further)', on_pushed: 'Uploaded your save to the cloud',
+    on_email: 'Email', on_password: 'Password (6+ characters)', on_signIn: 'Sign in', on_signUp: 'Sign up', on_guestBtn: 'Play as guest',
+    on_signOut: 'Sign out', on_syncNow: 'Sync now', on_checkMail: 'Confirmation email sent. Click the link, then come back and sign in.',
+    on_err: '⚠️ {m}', on_guestOff: 'Guest play is not enabled on the server yet. Use email instead.',
+    on_note: 'Saves merge automatically: the one that got further always wins, so progress is never lost.',
+    on_boardEmpty: 'No times yet. Be the first!', on_boardMe: 'You', on_boardHint: 'Fastest time per trail (sign in to submit yours)',
+    coop_tab: '🤝 Hike together', coop_noServer: 'No game server configured (VITE_COOP_URL)', coop_inPlan: 'Your next hike joins this room. Tell your friends the code:',
+    coop_leavePlan: 'Stop hiking together', coop_create: 'Create a room', coop_join: 'Join room', coop_code: "Friend's room code (4 characters)", coop_badCode: 'A room code is 4 letters/digits',
+    coop_how: 'Pick the same trail as your friends and start hiking. Up to 4 per room. The server moves everyone, so nobody can speed-hack or walk through walls.',
+    coop_needSignIn: 'Sign in first (Account tab) to join a room', coop_joining: 'Joining room {r}…', coop_room_badge: '🤝 Room {r}: friends must pick this trail too',
+    coop_err_full: '⚠️ That room is full (4 hikers)', coop_err_auth: '⚠️ Sign in to hike together (press O)', coop_err_no_server: '⚠️ No game server configured', coop_err_connect: '⚠️ Could not reach the game server. Try again.',
+    coop_joined: '🤝 {n} joined the hike', coop_left: '👋 {n} left', coop_inRoom: '🤝 Room {r} · {n} hiking',
+    on_rank: 'Rank', on_name: 'Name', on_time: 'Time', on_close: 'Close', on_loading: 'Loading…', on_hiker: 'Hiker',
+  },
+};

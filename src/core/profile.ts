@@ -1,5 +1,5 @@
 /**
- * PlayerProfile (thailand-wild-trails/knowledge/data-schema.md, schemaVersion 1).
+ * PlayerProfile (docs/knowledge/data-schema.md, schemaVersion 1).
  * Uses the same localStorage key and migration as the prototype, so a prototype save loads here
  * when both run on the same origin. Fields this port does not use yet are kept untouched.
  */

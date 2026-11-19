@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const proto = resolve(here, '../../thailand-wild-trails/knowledge/game.html');
+const proto = resolve(here, '../docs/knowledge/game.html');
 const html = readFileSync(proto, 'utf8');
 
 const start = html.indexOf('const STR = {');

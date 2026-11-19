@@ -2,9 +2,30 @@
 
 **Play:** https://pongsathorn11.github.io/thailand-wild-trails/
 
-The real build of the game. The single-file prototype in `../thailand-wild-trails/knowledge/game.html`
+The real build of the game. The single-file prototype in `docs/knowledge/game.html`
 (v1.1, also published as a claude.ai artifact) is the reference for how everything should play;
 this project ports it system by system into separate, tested modules.
+
+## Develop on another machine
+
+Everything needed is in this repo: code, design docs (`docs/`), prototype, database migrations and deploy config.
+
+1. Install **Node.js 22+** and **Git**, and sign in to GitHub (`gh auth login` or Git Credential Manager).
+2. Clone and install:
+   ```bash
+   git clone https://github.com/pongsathorn11/thailand-wild-trails.git
+   cd thailand-wild-trails
+   npm install
+   npm run dev
+   ```
+3. Open http://localhost:5173. `.env` is in the repo (public keys only), so sign-in, cloud saves and the leaderboard work right away.
+   For co-op, run `npm run coop` in a second terminal.
+4. Set your Git identity once on that machine (`git config user.name` / `user.email`, e.g. your GitHub no-reply address), then commit and push as usual.
+   Every push to `main` runs the tests and redeploys the game.
+
+Your game progress lives in the browser (localStorage). To carry it over, sign in from the ☁️ Online panel on both machines; the cloud save syncs it.
+
+Design docs for Claude Projects are in [`docs/`](docs/README.md): upload `docs/knowledge/` as Project Knowledge and paste `docs/project-instructions.md` as the Project Instructions.
 
 ## Run
 
@@ -32,6 +53,7 @@ Trail ids: `doi-inthanon-kew-mae-pan`, `phu-kradueng-summit`, `erawan-waterfall`
 | `src/audio/`, `src/input/` | Web Audio sound + generative music; touch joystick and buttons (`?touch=1` forces touch mode). |
 | `src/net/`, `src/ui/` | Supabase client (accounts, cloud save, leaderboard) and the Online panel. Optional: no settings = offline game. |
 | `server/` | Co-op game server (Node + `ws`). Imports `src/core` directly: one movement code for client and server. |
+| `docs/` | Design documents (vision, GDD, parks data, progress log), Claude Project instructions, and the prototype `docs/knowledge/game.html`. |
 | `supabase/migrations/` | Database schema with Row Level Security. Already applied to the project in `.env`. |
 
 Rules of the codebase (from the original brief, section 22):

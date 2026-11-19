@@ -1,5 +1,5 @@
 /**
- * Trail definitions. `realData` holds real-world facts (sources in thailand-wild-trails/knowledge/04-parks-data.md);
+ * Trail definitions. `realData` holds real-world facts (sources in docs/knowledge/04-parks-data.md);
  * everything else is game layout: condensed, partly fictional, and marked as such in that file.
  * `gen` describes how the 64×48 tile map is generated, so a new trail needs data only.
  */

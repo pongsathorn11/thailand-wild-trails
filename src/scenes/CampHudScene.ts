@@ -10,6 +10,8 @@ import { JOURNAL_TABS, type CampScene } from './CampScene';
 import { RANKS, rankIndex, skillPoints } from '../core/progress';
 import { PHOTO_EXP } from '../data/photos';
 import { nameTag } from './nameTag';
+import { drawJournalBook, medal } from '../ui/journalBook';
+import { splitIcon, toastNote } from '../ui/theme';
 import { badge, bar, C, FONT, greenButton, keyCap, notch, paper, PIXEL_FONT, posts, rule, scrim, tag, TX, wood, woodButton } from '../ui/theme';
 
 interface Hit { x: number; y: number; w: number; h: number; i: number }
@@ -139,9 +141,10 @@ export class CampHudScene extends Phaser.Scene {
 
     // ---- toasts: paper notes ----
     camp.toasts.forEach((tt, i) => {
-      const y = (narrow ? 250 : 84) + i * 42, w = Math.min(IW - 28, 480), a = Math.min(1, tt.t);
-      paper(g, IW / 2 - w / 2, y, w, 36, a);
-      this.text(tt.text, IW / 2, y + 17, 14, TX.ink, 'center', true).setAlpha(a);
+      const y = (narrow ? 250 : 84) + i * 44, w = Math.min(IW - 28, 480), a = Math.min(1, tt.t), [icon, rest] = splitIcon(tt.text);
+      const n = toastNote(g, IW / 2 - w / 2, y, w, 38, !!icon, a);
+      if (icon) { this.text(icon, n.iconX, y + 19, 14, '#ffffff', 'center').setAlpha(a); this.text(rest, n.tx, y + 19, 14, TX.ink, 'left', true).setAlpha(a).setCrop(0, 0, IW / 2 + w / 2 - n.tx - 10, 30); }
+      else this.text(rest, IW / 2, y + 19, 14, TX.ink, 'center', true).setAlpha(a);
     });
 
     // ---- desktop action bar ----
@@ -212,15 +215,13 @@ export class CampHudScene extends Phaser.Scene {
     for (let i = this.used; i < this.texts.length; i++) this.texts[i].setVisible(false);
   }
 
-  /** Menus are a wood header over a paper page; the journal adds bookmark tabs. */
+  /** Menus are a wood header over a paper page; the journal is an open book. */
   private drawMenu(camp: CampScene, IW: number, IH: number): void {
-    const m = camp.menu!, rows = camp.menuRows(), g = this.g, p = camp.profile;
-    const tab = m.tab ?? 'album';
-    if (m.type === 'journal' && IW >= 760 && IH >= 520) { this.drawBook(camp, IW, IH); return; }
-    const title = m.type === 'journal' ? 'menu_journal_' + tab : 'menu_' + m.type;
-    const hint = ({ quests: 'menu_hint_q', trails: 'trails_hint', shop: 'menu_hint', cook: 'menu_hint', skills: 'skill_hint',
-      journal: tab === 'titles' ? 'titles_hint' : 'journal_hint' } as Record<string, string>)[m.type];
-    const headH = 56, tabsH = m.type === 'journal' ? 44 : 0, rh = 48, pw = Math.min(700, IW - 24);
+    const m = camp.menu!, g = this.g, p = camp.profile;
+    if (m.type === 'journal') { this.drawBook(camp, IW, IH); return; }
+    const rows = camp.menuRows(), title = 'menu_' + m.type;
+    const hint = ({ quests: 'menu_hint_q', trails: 'trails_hint', shop: 'menu_hint', cook: 'menu_hint', skills: 'skill_hint' } as Record<string, string>)[m.type];
+    const headH = 56, tabsH = 0, rh = 48, pw = Math.min(700, IW - 24);
     const reserve = touch.enabled ? 236 : 0; // keep the touch buttons clear of the rows
     const chrome = headH + 16 + tabsH + 44;
     const maxRows = Math.max(3, Math.floor((IH - 24 - reserve - chrome) / rh)), shown = Math.min(rows.length, maxRows);
@@ -232,18 +233,6 @@ export class CampHudScene extends Phaser.Scene {
     this.signText(t(title), px + 20, py + headH / 2, 19);
     if (m.type === 'shop') this.signText(`🪙 ${p.coins}`, px + pw - 20, py + headH / 2, 16, TX.gold, 'right', PIXEL_FONT);
     if (m.type === 'skills') this.signText(t('skill_points', { n: skillPoints(p) }), px + pw - 20, py + headH / 2, 15, TX.gold, 'right');
-    if (m.type === 'journal' && tab === 'album') {
-      this.text(t('album_count', { n: ((p as any).album ?? []).length, m: Object.keys(PHOTO_EXP).length }), px + pw - 20, py + headH / 2, 14, TX.creamDim, 'right');
-    }
-    if (m.type === 'journal') {
-      const tw = (pw - 32) / JOURNAL_TABS.length, ty = py + headH + 6;
-      JOURNAL_TABS.forEach((id, i) => {
-        const x = px + 16 + i * tw, on = id === tab;
-        woodButton(g, x + 2, ty, tw - 4, 34, false, on);
-        this.tabHits.push({ x: x + 2, y: ty, w: tw - 4, h: 34, i, tab: id });
-        this.text(t('menu_journal_' + id).split(' ')[0], x + tw / 2, ty + 17, 13.5, on ? TX.woodShadow : TX.cream, 'center', true);
-      });
-    }
     const top = py + headH + 10 + tabsH + rh / 2;
     for (let k = 0; k < shown; k++) {
       const i = first + k, r = rows[i], y = top + k * rh, sel = m.sel === i && m.type !== 'quests';
@@ -251,7 +240,7 @@ export class CampHudScene extends Phaser.Scene {
       if (sel) { notch(g, px + 14, y - rh / 2 + 2, pw - 28, rh - 4, 3, C.gold); g.fillStyle(C.paperLight, 1).fillRect(px + 17, y - rh / 2 + 5, pw - 34, rh - 10); }
       else if (k < shown - 1) rule(g, px + 24, y + rh / 2 - 1, pw - 48);
       const a = r.enabled ? 1 : 0.5;
-      if (r.medal) this.medal(px + 36, y, r.medal.color, r.medal.ring, r.medal.got);
+      if (r.medal) medal(this.g, px + 36, y, r.medal.color, r.medal.ring, r.medal.got);
       this.text(r.icon, px + 36, y, r.medal ? 14 : 20, '#ffffff', 'center').setAlpha(r.medal && !r.medal.got ? 0.35 : a);
       this.text(r.label, px + 60, y - 9, 14.5, TX.ink, 'left', sel).setAlpha(a);
       this.text(r.sub, px + 60, y + 11, 11.5, TX.inkSoft).setAlpha(a);
@@ -262,93 +251,16 @@ export class CampHudScene extends Phaser.Scene {
     this.text(t(hint), IW / 2, py + ph - 20, 12, TX.inkFaint, 'center');
   }
 
-  /**
-   * Journal as an open book: bookmark tabs on top, two paper pages. Album, passport and medals are cards
-   * in a grid; achievements, titles and stats are ruled lines. The spread shown is the one holding the selection.
-   */
+  /** Journal as an open book (shared with the hike). */
   private drawBook(camp: CampScene, IW: number, IH: number): void {
-    const m = camp.menu!, rows = camp.menuRows(), g = this.g, p = camp.profile, tab = m.tab ?? 'album';
-    const grid = tab === 'album' || tab === 'passport' || tab === 'medals';
-    const BW = Math.min(1120, IW - 40), BH = Math.min(600, IH - 96), bx = Math.round(IW / 2 - BW / 2), by = Math.max(56, Math.round(IH / 2 - BH / 2 + 20));
-    scrim(g, IW, IH, 0.55);
-
-    // bookmark tabs
-    const tw = Math.min(172, (BW - 100) / JOURNAL_TABS.length), ty = by - 40;
-    JOURNAL_TABS.forEach((id, i) => {
-      const x = bx + 24 + i * (tw + 4), on = id === tab;
-      if (on) { notch(g, x, ty - 4, tw, 48, 3, C.paperEdge); g.fillStyle(C.paper, 1).fillRect(x + 3, ty - 1, tw - 6, 45); }
-      else woodButton(g, x, ty, tw, 40);
-      this.text(t('menu_journal_' + id), x + tw / 2, ty + (on ? 16 : 20), 13, on ? TX.ink : TX.cream, 'center', true).setCrop(0, 0, tw + 40, 30);
-      this.tabHits.push({ x, y: ty - 4, w: tw, h: 44, i, tab: id });
-    });
-    this.book = { x: bx, y: ty - 4, w: BW, h: BH + (by - ty) + 4, i: -1 };
-    this.bookClose = { x: bx + BW - 48, y: ty, w: 40, h: 40, i: -1 };
-    woodButton(g, bx + BW - 48, ty, 40, 40);
-    this.text('✕', bx + BW - 28, ty + 20, 16, TX.cream, 'center', true);
-
-    // cover, pages, spine
-    notch(g, bx, by, BW, BH, 6, C.woodDeep);
-    g.fillStyle(0x6b3f1f, 1).fillRect(bx + 6, by + 6, BW - 12, BH - 12);
-    const pw = (BW - 40) / 2, lx = bx + 16, rx = bx + BW / 2 + 4, py = by + 16, ph = BH - 32;
-    for (const x of [lx, rx]) {
-      g.fillStyle(C.paperShade, 1).fillRect(Math.round(x), py, Math.round(pw), ph);
-      g.fillStyle(C.paper, 1).fillRect(Math.round(x), py, Math.round(pw), ph - 5);
-    }
-    g.fillStyle(C.paperShade, 1).fillRect(Math.round(lx + pw - 12), py, 12, ph - 5).fillRect(Math.round(rx), py, 12, ph - 5);
-    g.fillStyle(C.paperEdge, 1).fillRect(Math.round(bx + BW / 2 - 4), by + 10, 8, BH - 20);
-
-    // page headers
-    const title = t('menu_journal_' + tab);
-    this.text(title, lx + 24, py + 30, 20, TX.ink, 'left', true);
-    if (tab === 'album') this.text(t('album_count', { n: ((p as any).album ?? []).length, m: Object.keys(PHOTO_EXP).length }), lx + pw - 24, py + 30, 13, TX.inkFaint, 'right', true);
-    const bodyTop = py + 60, bodyH = ph - 60 - 34;
-
-    // how many entries fit on one page
-    const cols = 3, cardH = 96, gap = 10, cardW = (pw - 48 - (cols - 1) * gap) / cols;
-    const perPage = grid ? cols * Math.max(1, Math.floor((bodyH + gap) / (cardH + gap))) : Math.max(1, Math.floor(bodyH / 50));
-    const spread = Math.floor(m.sel / (2 * perPage)), first = spread * 2 * perPage, spreads = Math.max(1, Math.ceil(rows.length / (2 * perPage)));
-    this.text(t('ui_book_page', { n: spread + 1, m: spreads }), rx + pw - 24, py + 30, 13, TX.inkFaint, 'right', true);
-
-    for (let k = 0; k < 2 * perPage && first + k < rows.length; k++) {
-      const i = first + k, r = rows[i], page = k < perPage ? 0 : 1, j = k % perPage, ox = (page ? rx : lx) + 24, sel = m.sel === i;
-      const a = r.enabled ? 1 : 0.45;
-      if (grid) {
-        const cx = ox + (j % cols) * (cardW + gap), cy = bodyTop + Math.floor(j / cols) * (cardH + gap);
-        notch(g, cx, cy, cardW, cardH, 3, sel ? C.gold : r.enabled ? C.paperEdge : C.paperLine);
-        g.fillStyle(r.enabled ? C.paperLight : C.paperShade, 1).fillRect(Math.round(cx + 3), Math.round(cy + 3), Math.round(cardW - 6), cardH - 6);
-        if (r.medal) this.medal(cx + cardW / 2, cy + 28, r.medal.color, r.medal.ring, r.medal.got);
-        this.text(r.icon, cx + cardW / 2, cy + 28, r.medal ? 14 : 24, '#ffffff', 'center').setAlpha(r.medal && !r.medal.got ? 0.35 : a);
-        this.text(r.label, cx + cardW / 2, cy + 60, 12.5, TX.ink, 'center', true).setAlpha(a).setCrop(0, 0, cardW - 8, 30);
-        this.text(r.right, cx + cardW / 2, cy + 80, 11, TX.green, 'center', true).setAlpha(a).setCrop(0, 0, cardW - 8, 30);
-        this.rowHits.push({ x: cx, y: cy, w: cardW, h: cardH, i });
-      } else {
-        const y = bodyTop + j * 50 + 24, w = pw - 48;
-        if (sel) { notch(g, ox - 6, y - 23, w + 12, 46, 3, C.gold); g.fillStyle(C.paperLight, 1).fillRect(ox - 3, y - 20, w + 6, 40); }
-        else rule(g, ox, y + 23, w);
-        if (r.medal) this.medal(ox + 14, y, r.medal.color, r.medal.ring, r.medal.got);
-        this.text(r.icon, ox + 14, y, r.medal ? 14 : 20, '#ffffff', 'center').setAlpha(a);
-        const rt = this.text(r.right, ox + w, y, 12.5, TX.green, 'right', true).setAlpha(a);
-        this.text(r.label, ox + 36, y - 9, 14, TX.ink, 'left', sel).setAlpha(a).setCrop(0, 0, w - 44 - rt.width, 30);
-        this.text(r.sub, ox + 36, y + 11, 11, TX.inkSoft).setAlpha(a).setCrop(0, 0, w - 44 - rt.width, 30);
-        this.rowHits.push({ x: ox - 6, y: y - 23, w: w + 12, h: 46, i });
-      }
-    }
-
-    // the selected entry's details (grid cards only show a short label)
-    if (grid && rows[m.sel]) {
-      const r = rows[m.sel], dy = py + ph - 26;
-      this.text(r.label + (r.sub ? '  ·  ' + r.sub : ''), lx + 24, dy, 12, TX.inkSoft).setCrop(0, 0, pw * 2 - 40, 30);
-    }
-    const hint = tab === 'titles' ? 'titles_hint' : 'journal_hint';
-    this.text(t(hint), IW / 2, by + BH + 16, 12, TX.creamDim, 'center');
+    const m = camp.menu!, p = camp.profile, tab = m.tab ?? 'album';
+    const hits = drawJournalBook({ g: this.g, text: (s, x, y, size, color, align, bold) => this.text(s, x, y, size, color, align, bold) }, {
+      tab, sel: m.sel, rows: camp.menuRows(), hint: tab === 'titles' ? 'titles_hint' : 'journal_hint', reserveBottom: touch.enabled ? 236 : 0,
+      corner: tab === 'album' ? t('album_count', { n: ((p as any).album ?? []).length, m: Object.keys(PHOTO_EXP).length }) : undefined,
+    }, IW, IH);
+    hits.rows.forEach((r) => this.rowHits.push(r));
+    hits.tabs.forEach((r, i) => this.tabHits.push({ ...r, i }));
+    this.book = { ...hits.area, i: -1 }; this.bookClose = { ...hits.close, i: -1 };
   }
 
-  /** Round medal: ribbon, colored disc and ring; greyed out until earned. */
-  private medal(x: number, y: number, color: number, ring: number, got: boolean): void {
-    const g = this.g, a = got ? 1 : 0.3;
-    g.fillStyle(0xc0504d, a).fillTriangle(x - 9, y - 18, x - 2, y - 18, x - 6, y - 6);
-    g.fillStyle(0x3a6ea5, a).fillTriangle(x + 2, y - 18, x + 9, y - 18, x + 6, y - 6);
-    g.fillStyle(got ? ring : 0x8a7050, 1).fillCircle(x, y + 2, 14);
-    g.fillStyle(got ? color : 0xc9b48c, 1).fillCircle(x, y + 2, 11);
-  }
 }

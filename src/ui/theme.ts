@@ -144,3 +144,19 @@ export function pixelIcon(g: G, rows: string[], x: number, y: number, px: number
   g.fillStyle(color, 1);
   rows.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') g.fillRect(x + c * px, y + r * px, px, px); }));
 }
+
+/** Splits a leading emoji ("📷 New photo") into [icon, rest]; icon is '' when there is none. */
+export function splitIcon(s: string): [string, string] {
+  const m = /^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u.exec(s);
+  return m ? [m[1], s.slice(m[0].length)] : ['', s];
+}
+
+/** Paper toast with an optional square icon box on the left. Returns where the text goes. */
+export function toastNote(g: G, x: number, y: number, w: number, h: number, withIcon: boolean, alpha = 1): { tx: number; iconX: number } {
+  paper(g, x, y, w, h, alpha);
+  if (!withIcon) return { tx: x + w / 2, iconX: 0 };
+  const s = h - 14;
+  notch(g, x + 8, y + 7, s, s, 2, C.woodDark, alpha);
+  g.fillStyle(C.wood, alpha).fillRect(Math.round(x + 10), Math.round(y + 9), s - 4, s - 4);
+  return { tx: x + 8 + s + 10, iconX: x + 8 + s / 2 };
+}

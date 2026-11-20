@@ -132,10 +132,10 @@ export class SystemScene extends Phaser.Scene {
     // touch layout for this frame
     const IW = this.scale.width, IH = this.scale.height, g = this.g;
     g.clear(); this.used = 0;
-    const menu = screen === 'camp' && !!this.camp.menu, build = screen === 'camp' && !!this.camp.build;
+    const menu = (screen === 'camp' && !!this.camp.menu) || (screen === 'hike' && !!this.hike.journal), build = screen === 'camp' && !!this.camp.build;
     const finished = hikeOn && this.hike.finished;
     touch.buttons = touch.enabled && !finished ? layoutButtons({ screen, menu, build, sound: p.sound !== false, music: p.music !== false, soundY: screen === 'title' ? (this.scene.get('title') as unknown as { soundY: number }).soundY || undefined : undefined }, IW, IH) : [];
-    const walk = touch.enabled && ((hikeOn && !finished) || (screen === 'camp' && !menu));
+    const walk = touch.enabled && ((hikeOn && !finished && !this.hike.journal && !this.hike.bigMap) || (screen === 'camp' && !menu));
     const hb = (this.scene.get('hud') as unknown as { hotbar?: { y: number } }).hotbar;
     const barY = screen === 'hike' && hb?.y ? hb.y - 8 : IH;
     touch.stickZone = walk ? (x, y) => x < IW * 0.55 && y > 70 && y < barY : null;

@@ -22,7 +22,7 @@ export function layoutButtons(v: TouchView, IW: number, IH: number): TouchButton
   const sy = v.soundY ?? IH - 24, big = v.soundY !== undefined;
   add('snd', IW - (big ? 34 : 26), sy, big ? 18 : 15, v.sound ? '🔊' : '🔇', { code: 'KeyM' });
   add('mus', IW - (big ? 76 : 62), sy, big ? 18 : 15, v.music ? '🎵' : '🚫', { code: 'KeyN' });
-  if (v.screen === 'pack' || (v.screen === 'camp' && v.menu)) {
+  if (v.screen === 'pack' || ((v.screen === 'camp' || v.screen === 'hike') && v.menu)) {
     add('up', rx - 52, by - 58, 24, '▲', { code: 'ArrowUp' }); add('down', rx - 52, by + 30, 24, '▼', { code: 'ArrowDown' });
     add('left', rx - 100, by - 14, 24, '◀', { code: 'ArrowLeft' }); add('right', rx - 4, by - 14, 24, '▶', { code: 'ArrowRight' });
     add('ok', 64, by + 10, 30, 'OK', { code: 'Enter' });
@@ -30,7 +30,7 @@ export function layoutButtons(v: TouchView, IW: number, IH: number): TouchButton
   } else if (v.screen === 'hike' || v.screen === 'camp') {
     add('act', rx, by + 16, 34, 'E', { code: 'KeyE' });
     add('run', rx - 78, by + 40, 26, '🏃', { hold: 'run' });
-    if (v.screen === 'hike') add('pause', IW - 98, IH - 24, 15, '⏸', { code: 'KeyP' });
+    if (v.screen === 'hike') { add('pause', IW - 98, IH - 24, 15, '⏸', { code: 'KeyP' }); add('jrnl', IW - 134, IH - 24, 15, '📖', { code: 'KeyJ' }); }
     if (v.screen === 'camp') {
       if (v.build) {
         add('place', rx, by - 62, 24, '✔', { code: 'KeyE' }); add('pick', rx - 56, by - 62, 22, 'X', { code: 'KeyX' });

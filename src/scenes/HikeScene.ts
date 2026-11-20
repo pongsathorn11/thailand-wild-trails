@@ -13,6 +13,7 @@ import { T, TERRAIN, type TileId } from '../data/terrain';
 import { trailById, TRAILS, type TrailDef, type WeatherId, type Poi, type Season } from '../data/trails';
 import { t, tList } from '../i18n';
 import { saveProfile, type Profile } from '../core/profile';
+import { JOURNAL_TABS, journalRows, type JournalTab, type MenuRow } from './journalRows';
 import { add, fromPack, has, hasEmptyBottle, overweight, refill, returnCooked, useSlot, type Backpack } from '../core/backpack';
 import { COOKED } from '../data/items';
 import { levelInfo, lockedTrails, notifyQuest } from '../core/camp';
@@ -101,7 +102,7 @@ export class HikeScene extends Phaser.Scene {
     this.coopSprites.clear();
     this.presetWeather = data.weather ?? null;
     Object.assign(this, { elapsed: 0, checkpoint: false, finished: false, summary: null, rescued: null, toasts: [], photos: [], litterTaken: 0,
-      secretFound: false, flash: 0, dialog: null, activeEvents: [], wetUntil: 0, zone: '', overWarned: false, campMessages: [], paused: false });
+      secretFound: false, flash: 0, dialog: null, activeEvents: [], wetUntil: 0, zone: '', overWarned: false, campMessages: [], paused: false, journal: null, bigMap: false });
     this.nextEventIn = 25 + Math.random() * 15;
     this.canopies = []; this.sparkles = []; this.litter = []; this.spawns = []; this.bird = null;
     this.done.clear(); this.poiObjs.clear(); this.warned.clear(); this.seenZones.clear();
@@ -152,7 +153,7 @@ export class HikeScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
     // one DOM listener for discrete actions (exactly one call per key press; held keys use this.keys)
-    const onDown = (e: KeyboardEvent) => { if (!e.repeat) this.onKey(e.code); };
+    const onDown = (e: KeyboardEvent) => { if (e.code === 'Tab') e.preventDefault(); if (!e.repeat) this.onKey(e.code); };
     window.addEventListener('keydown', onDown);
     this.events.once('shutdown', () => { window.removeEventListener('keydown', onDown); this.scale.off('resize', this.applyZoom, this); this.scene.stop('hud'); this.coop?.leave(); this.coop = null; });
     if (this.coop) this.setupCoop(this.coop);
@@ -259,11 +260,31 @@ export class HikeScene extends Phaser.Scene {
 
   private readInput(): Input {
     const k = this.keys;
+    if (this.journal || this.bigMap) return { left: false, right: false, up: false, down: false, run: false }; // co-op: keys browse the overlay
     return { left: k.A.isDown || k.LEFT.isDown || vkeys.left, right: k.D.isDown || k.RIGHT.isDown || vkeys.right, up: k.W.isDown || k.UP.isDown || vkeys.up, down: k.S.isDown || k.DOWN.isDown || vkeys.down, run: k.SHIFT.isDown || vkeys.run };
   }
 
   /** Solo hikes can pause (P): the clock, body stats and events stop. Co-op rooms keep running on the server. */
   paused = false;
+  /** Journal (J) and the big map (Tab) open over the trail; on a solo hike they hold the clock like the pause does. */
+  journal: { tab: JournalTab; sel: number } | null = null;
+  bigMap = false;
+  get frozen(): boolean { return this.paused || (!this.coop && (!!this.journal || this.bigMap)); }
+  journalRows(): MenuRow[] { return this.journal ? journalRows(this.profile, this.journal.tab) : []; }
+  openJournal(): void { if (!this.finished) { this.bigMap = false; this.journal = { tab: 'album', sel: 0 }; audio.sfx('select'); } }
+  closeOverlays(): void { if (this.journal || this.bigMap) audio.sfx('blip'); this.journal = null; this.bigMap = false; }
+  toggleMap(): void { if (!this.finished) { this.journal = null; this.bigMap = !this.bigMap; audio.sfx('blip'); } }
+  private journalKey(code: string): void {
+    const j = this.journal!, n = this.journalRows().length;
+    if (code === 'Escape' || code === 'KeyJ') { this.closeOverlays(); return; }
+    if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS', 'ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(code)) audio.sfx('blip');
+    if (n && (code === 'ArrowUp' || code === 'KeyW')) j.sel = (j.sel + n - 1) % n;
+    if (n && (code === 'ArrowDown' || code === 'KeyS')) j.sel = (j.sel + 1) % n;
+    if (['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(code)) {
+      const i = JOURNAL_TABS.indexOf(j.tab), d = code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1;
+      j.tab = JOURNAL_TABS[(i + d + JOURNAL_TABS.length) % JOURNAL_TABS.length]; j.sel = 0;
+    }
+  }
   togglePause(): void {
     if (this.finished) return;
     if (this.coop) { this.toast(t('ui_pause_coop')); audio.sfx('error'); return; }
@@ -274,6 +295,10 @@ export class HikeScene extends Phaser.Scene {
   private onKey(code: string): void {
     if (code === 'KeyP' || (this.paused && (code === 'Escape' || code === 'Enter'))) { this.togglePause(); return; }
     if (this.paused) return;
+    if (this.journal) { this.journalKey(code); return; }
+    if (this.bigMap) { if (['Tab', 'Escape', 'Enter', 'Space'].includes(code)) this.closeOverlays(); return; }
+    if (!this.finished && code === 'KeyJ') { this.openJournal(); return; }
+    if (!this.finished && code === 'Tab') { this.toggleMap(); return; }
     if (this.finished) {
       if (code === 'Enter' || code === 'Space') this.scene.start('camp', { messages: this.campMessages });
       return;
@@ -525,7 +550,7 @@ export class HikeScene extends Phaser.Scene {
     this.flash = Math.max(0, this.flash - dt * 3);
     const now = this.time.now / 1000;
     for (const c of this.canopies) c.img.x = c.x + Math.round(Math.sin(now * 1.4 + c.phase) * 0.8);
-    if (this.finished || this.paused) return;
+    if (this.finished || this.frozen) return;
 
     this.elapsed += dt;
     const h = this.hiker, bp = this.bp;

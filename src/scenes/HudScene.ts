@@ -10,7 +10,12 @@ import { t } from '../i18n';
 import type { HikeScene } from './HikeScene';
 import { nameTag } from './nameTag';
 import { levelInfo } from '../core/camp';
-import { bar, C, FONT, greenButton, keyCap, paper, PIXEL_FONT, pixelIcon, posts, scrim, slot, STAT_ICONS, tag, TX, wood, woodButton } from '../ui/theme';
+import { audio } from '../audio/audio';
+import { bar, C, FONT, greenButton, keyCap, notch, paper, PIXEL_FONT, pixelIcon, posts, scrim, slot, splitIcon, STAT_ICONS, tag, toastNote, TX, wood, woodButton } from '../ui/theme';
+import { exploredPct, statusWarning } from '../core/hudInfo';
+import { has } from '../core/backpack';
+import { drawJournalBook, type BookHits } from '../ui/journalBook';
+import { PHOTO_EXP } from '../data/photos';
 import { paintHeadThumb } from '../gfx/chibi';
 import { lookOf } from '../core/creator';
 
@@ -31,6 +36,12 @@ export class HudScene extends Phaser.Scene {
   private hotbar = { x0: 0, y: 0, sz: 0, step: 0 };
   private head!: Phaser.GameObjects.Image;
   private sysHits: SysHit[] = [];
+  private pct = 0;
+  private pctAt = -1e9;
+  private bookHits: BookHits | null = null;
+  private mmRect = { x: 0, y: 0, w: 0, h: 0 };
+  private bigMini!: Phaser.GameObjects.Image;
+  private over!: Phaser.GameObjects.Graphics;
 
   constructor() { super('hud'); }
 
@@ -46,12 +57,24 @@ export class HudScene extends Phaser.Scene {
     if (this.textures.exists('hud-head')) this.textures.remove('hud-head');
     this.textures.addCanvas('hud-head', paintHeadThumb(lookOf(hike0.profile), 48, '#f2e2bc'));
     this.head = this.add.image(0, 0, 'hud-head').setOrigin(0).setDepth(1.5);
+    this.bigMini = this.add.image(0, 0, '__WHITE').setOrigin(0).setDepth(3.5).setVisible(false);
+    this.over = this.add.graphics().setDepth(3.6);
     this.scale.on('resize', (s: Phaser.Structs.Size) => this.night.resize(s.width, s.height));
     for (let i = 0; i < 160; i++) this.rain.push({ x: Math.random() * 2000, y: Math.random() * 1200, s: 420 + Math.random() * 240 });
     // click/tap a hotbar slot to use it
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (touchClaims(p)) return;
       const hb = this.hotbar, hike = this.scene.get('hike') as HikeScene;
+      const inR = (r: { x: number; y: number; w: number; h: number }) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+      if (hike.journal && this.bookHits) {
+        const bh = this.bookHits, tb = bh.tabs.find(inR), row = bh.rows.find(inR);
+        if (tb) { hike.journal.tab = tb.tab; hike.journal.sel = 0; audio.sfx('blip'); }
+        else if (row) hike.journal.sel = row.i;
+        else if (inR(bh.close) || !inR(bh.area)) hike.closeOverlays();
+        return;
+      }
+      if (hike.bigMap) { hike.closeOverlays(); return; }
+      if (!hike.finished && !hike.paused && inR(this.mmRect)) { hike.toggleMap(); return; }
       const sh = this.sysHits.find((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h);
       if (sh) { window.dispatchEvent(new KeyboardEvent('keydown', { code: sh.code })); return; }
       if (hike.paused || hike.finished || p.y < hb.y || p.y > hb.y + hb.sz || p.x < hb.x0) return;
@@ -84,7 +107,7 @@ export class HudScene extends Phaser.Scene {
     const hike = this.scene.get('hike') as HikeScene;
     if (!hike?.hiker || !hike.world) return;
     const IW = this.scale.width, IH = this.scale.height, g = this.g, h = hike.hiker, cam = hike.cameras.main, narrow = IW < 700;
-    g.clear(); this.top.clear(); this.used = 0; this.sysHits = [];
+    g.clear(); this.top.clear(); this.over.clear(); this.used = 0; this.sysHits = []; this.bookHits = null; this.bigMini.setVisible(false);
 
     // ---- light and weather ----
     const sx = (h.x - cam.worldView.x) * cam.zoom, sy = (h.y - 10 - cam.worldView.y) * cam.zoom;
@@ -146,6 +169,14 @@ export class HudScene extends Phaser.Scene {
     const kg = weight(hike.bp), over = kg > CONFIG.MAX_WEIGHT_KG;
     this.text(`🎒 ${kg.toFixed(1)}/${CONFIG.MAX_WEIGHT_KG} kg · ${hike.bp.slots.length}/${CONFIG.MAX_SLOTS} ${t('slots')}`, SX + 14, SY + 181, 12.5, over ? TX.redOnWood : TX.cream).setCrop(0, 0, SW - 70, 30);
     this.text(`📷 ${hike.photos.length}`, SX + SW - 14, SY + 181, 12.5, TX.creamDim, 'right');
+    const warn = statusWarning({ stamina: h.stamina, hunger: h.hunger, thirst: h.thirst, warmth: h.warmth, exhausted: h.exhausted,
+      jacketOff: has(hike.bp, 'jacket') && hike.bp.wearing.body !== 'jacket', overweight: over });
+    let warnH = 0;
+    if (warn) {
+      const wt = this.text('⚠ ' + t(warn), SX + 12, SY + SH + 15, 12, '#ffffff', 'left', true).setCrop(0, 0, SW - 24, 30);
+      notch(g, SX, SY + SH + 3, Math.min(SW, wt.width + 24), 24, 2, Math.sin(this.time.now / 300) > -0.6 ? 0xa8321e : 0x7a2416, 0.95);
+      warnH = 30;
+    }
 
     // ---- clock, weather, temperature, minimap ----
     const icon = { clear: '☀️', fog: '🌫️', drizzle: '🌦️' }[hike.weather];
@@ -159,8 +190,9 @@ export class HudScene extends Phaser.Scene {
       this.text(temp, mmX + mmW - 2, 33, 12.5, TX.cream, 'right');
     }
     wood(g, mmX - 10, 56, mmW + 20, mmH + 44);
-    let seen = 0; for (let i = 0; i < hike.revealed.length; i++) seen += hike.revealed[i];
-    this.text(t('ui_explored', { n: Math.round((seen / hike.revealed.length) * 100) }), mmX, mmY + mmH + 18, narrow ? 10.5 : 12, TX.creamDim);
+    this.mmRect = { x: mmX, y: mmY, w: mmW, h: mmH };
+    if (this.time.now - this.pctAt > 500) { this.pctAt = this.time.now; this.pct = exploredPct(hike.world, hike.revealed); }
+    this.text(t('ui_explored', { n: this.pct }) + (narrow ? '' : '  ·  Tab ' + t('ui_map')), mmX, mmY + mmH + 18, narrow ? 10.5 : 12, TX.creamDim);
     g.fillStyle(C.woodDeep, 1).fillRect(mmX - 3, mmY - 3, mmW + 6, mmH + 6);
     g.fillStyle(0x0e1612, 1).fillRect(mmX, mmY, mmW, mmH);
     this.mini.setTexture('minimap').setPosition(mmX, mmY).setDisplaySize(mmW, mmH).setVisible(true);
@@ -194,7 +226,7 @@ export class HudScene extends Phaser.Scene {
       ow = Math.min(tw - 40, 380); ox = Math.round(tx0 + tw / 2 - ow / 2); oy = 82;
       posts(g, ox + 30, ox + ow - 30, 68, 16);
     } else {
-      ow = Math.min(IW - 28, 380); ox = narrow ? 14 : Math.round(IW / 2 - ow / 2); oy = narrow ? SY + SH + 8 : 14;
+      ow = Math.min(IW - 28, 380); ox = narrow ? 14 : Math.round(IW / 2 - ow / 2); oy = narrow ? SY + SH + 8 + warnH : 14;
     }
     paper(g, ox, oy, ow, 40);
     const ang = Math.atan2(dy, dx), ax = ox + 24, ay = oy + 19;
@@ -207,9 +239,10 @@ export class HudScene extends Phaser.Scene {
 
     // ---- toasts: paper notes ----
     hike.toasts.forEach((tt, i) => {
-      const y = oy + 50 + i * 42, w = Math.min(IW - 28, 460), a = Math.min(1, tt.t);
-      paper(g, IW / 2 - w / 2, y, w, 36, a);
-      this.text(tt.text, IW / 2, y + 17, 14, TX.ink, 'center', true).setAlpha(a);
+      const y = oy + 50 + i * 44, w = Math.min(IW - 28, 460), a = Math.min(1, tt.t), [icon, rest] = splitIcon(tt.text);
+      const n = toastNote(g, IW / 2 - w / 2, y, w, 38, !!icon, a);
+      if (icon) { this.text(icon, n.iconX, y + 19, 14, '#ffffff', 'center').setAlpha(a); this.text(rest, n.tx, y + 19, 14, TX.ink, 'left', true).setAlpha(a).setCrop(0, 0, IW / 2 + w / 2 - n.tx - 10, 30); }
+      else this.text(rest, IW / 2, y + 19, 14, TX.ink, 'center', true).setAlpha(a);
     });
 
     // ---- hotbar: 12 backpack slots, keys 1–9 0 - = ----
@@ -256,9 +289,9 @@ export class HudScene extends Phaser.Scene {
     if (hike.flash > 0) this.top.fillStyle(0xffffff, hike.flash).fillRect(0, 0, IW, IH);
 
     // desktop system buttons (touch screens have their own): sound, music, pause
-    if (!touch.enabled && !hike.finished && hbX + hbW + 3 * 52 + 24 < IW) {
+    if (!touch.enabled && !hike.finished && hbX + hbW + 4 * 52 + 24 < IW) {
       const prefs = p as typeof p & { sound?: boolean; music?: boolean };
-      const btns = [{ code: 'KeyM', icon: prefs.sound === false ? '🔇' : '🔊' }, { code: 'KeyN', icon: prefs.music === false ? '🚫' : '🎵' }, { code: 'KeyP', icon: hike.paused ? '▶' : '⏸' }];
+      const btns = [{ code: 'KeyM', icon: prefs.sound === false ? '🔇' : '🔊' }, { code: 'KeyN', icon: prefs.music === false ? '🚫' : '🎵' }, { code: 'KeyJ', icon: '📖' }, { code: 'KeyP', icon: hike.paused ? '▶' : '⏸' }];
       btns.forEach((b, i) => {
         const x = IW - 14 - (btns.length - i) * 52 + 4, y = IH - 62;
         woodButton(g, x, y, 46, 46, false, b.code === 'KeyP' && hike.paused);
@@ -266,6 +299,8 @@ export class HudScene extends Phaser.Scene {
         this.sysHits.push({ x, y, w: 46, h: 46, code: b.code });
       });
     }
+    if (hike.bigMap) this.drawBigMap(IW, IH, hike);
+    if (hike.journal) this.drawJournal(IW, IH, hike);
     if (hike.paused) this.drawPause(IW, IH);
     if (hike.summary) this.drawSummary(IW, IH, hike);
     else if (hike.rescued) this.drawRescue(IW, IH, hike.rescued);
@@ -299,6 +334,44 @@ export class HudScene extends Phaser.Scene {
     const bw = Math.min(260, pw - 48), by = py + ph - 58;
     greenButton(g, IW / 2 - bw / 2, by, bw, 44);
     this.signText(t('port_restart'), IW / 2, by + 20, 15, '#ffffff', 'center').setDepth(4).setShadow(0, 2, '#24461a', 0, false, true);
+  }
+
+  /** Journal opened on the trail (read-only; titles are equipped at camp). */
+  private drawJournal(IW: number, IH: number, hike: HikeScene): void {
+    const j = hike.journal!, p = hike.profile as typeof hike.profile & { album?: unknown[] };
+    this.bookHits = drawJournalBook({ g: this.top, text: (s, x, y, size, color, align, bold) => this.text(s, x, y, size, color, align, bold, 4) }, {
+      tab: j.tab, sel: j.sel, rows: hike.journalRows(), hint: 'journal_hint', reserveBottom: touch.enabled ? 236 : 0,
+      corner: j.tab === 'album' ? t('album_count', { n: (p.album ?? []).length, m: Object.keys(PHOTO_EXP).length }) : undefined,
+    }, IW, IH);
+  }
+
+  /** Full map: the explored minimap scaled up with a legend. */
+  private drawBigMap(IW: number, IH: number, hike: HikeScene): void {
+    const g = this.top, w = hike.world, maxW = IW - 60, maxH = IH - 160;
+    const s = Math.max(1, Math.floor(Math.min(maxW / w.w, maxH / w.h))), mw = w.w * s, mh = w.h * s, top = Math.max(70, Math.round((IH - mh - 70) / 2 + 20)), x = Math.round(IW / 2 - mw / 2), y = top;
+    scrim(g, IW, IH, 0.6);
+    const head = this.signText(`🗺 ${t(hike.trail.trailKey)}  ·  ${t('ui_explored', { n: this.pct })}`, IW / 2, top - 30, 15, TX.cream, 'center').setDepth(4);
+    wood(g, IW / 2 - Math.min(IW - 24, head.width + 40) / 2, top - 54, Math.min(IW - 24, head.width + 40), 44);
+    wood(g, x - 12, y - 4 + 2, mw + 24, mh + 18);
+    g.fillStyle(C.woodDeep, 1).fillRect(x - 3, y + 5, mw + 6, mh + 6);
+    this.bigMini.setTexture('minimap').setPosition(x, y + 8).setDisplaySize(mw, mh).setVisible(true);
+    const dot = (tx: number, ty: number, color: number, r: number) => {
+      const cx = Math.round(x + tx * s + s / 2), cy = Math.round(y + 8 + ty * s + s / 2);
+      this.over.fillStyle(C.woodDeep, 1).fillRect(cx - r - 2, cy - r - 2, 2 * r + 4, 2 * r + 4);
+      this.over.fillStyle(color, 1).fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    };
+    for (const poi of hike.trail.pois) {
+      const known = poi.type === 'viewpoint' || poi.type === 'goal' || hike.revealed[poi.y * w.w + poi.x];
+      if (known && poi.type !== 'secret') dot(poi.x, poi.y, poi.type === 'viewpoint' ? 0x4fc3f7 : poi.type === 'goal' ? C.gold : C.paper, Math.max(3, s));
+    }
+    dot(hike.hiker.x / CONFIG.TILE - 0.5, hike.hiker.y / CONFIG.TILE - 0.5, 0xffffff, Math.max(4, s + 1));
+    // legend
+    const items: [number, string][] = [[0xffffff, 'ui_you'], [C.gold, 'ui_goal'], [0x4fc3f7, 'ui_view'], [C.paper, 'ui_poi']];
+    const ly = y + mh + 40, texts = items.map(([, k]) => this.text(t(k), 0, ly, 12.5, TX.cream, 'left', true, 4));
+    const total = texts.reduce((a2, tx) => a2 + tx.width + 40, 0); let lx = IW / 2 - total / 2;
+    const bgW = Math.min(IW - 24, total + 20); tag(g, IW / 2 - bgW / 2, ly - 14, bgW, 28, 0.85);
+    items.forEach(([c], i) => { this.over.fillStyle(C.woodDeep, 1).fillRect(lx - 1, ly - 7, 14, 14); this.over.fillStyle(c, 1).fillRect(lx + 1, ly - 5, 10, 10); texts[i].setX(lx + 18); lx += texts[i].width + 40; });
+    this.text(t('ui_map_hint'), IW / 2, ly + 28, 11.5, TX.creamDim, 'center', false, 4);
   }
 
   private drawPause(IW: number, IH: number): void {

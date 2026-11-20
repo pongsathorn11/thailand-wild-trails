@@ -74,7 +74,7 @@ Rules of the codebase (from the original brief, section 22):
 | M7 Polish | touch controls, sound effects, generative music, phone layout | ✅ |
 | M8a Online | Supabase accounts (email + password, guest), cloud save that never loses progress, per-trail leaderboard written only through a validating database function | ✅ |
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
-| UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book, pause (P), trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
+| UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
 | M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · server: connect once in Render |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.

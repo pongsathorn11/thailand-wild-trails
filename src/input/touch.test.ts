@@ -7,7 +7,8 @@ const ids = (v: Partial<TouchView>) => layoutButtons(view(v), 400, 800).map((b) 
 describe('touch controls', () => {
   it('shows the right buttons for each screen', () => {
     expect(ids({ screen: 'title' })).toEqual(['snd', 'mus']);
-    expect(ids({ screen: 'hike' })).toEqual(['snd', 'mus', 'act', 'run', 'pause']);
+    expect(ids({ screen: 'hike' })).toEqual(['snd', 'mus', 'act', 'run', 'pause', 'jrnl']);
+    expect(ids({ screen: 'hike', menu: true })).toEqual(['snd', 'mus', 'up', 'down', 'left', 'right', 'ok', 'back']);
     expect(layoutButtons(view({ screen: 'hike' }), 400, 800).find((b) => b.id === 'pause')!.code).toBe('KeyP');
     expect(ids({ screen: 'camp' })).toEqual(expect.arrayContaining(['act', 'run', 'seed', 'build', 'skills', 'journal', 'home']));
     expect(ids({ screen: 'camp', build: true })).toEqual(expect.arrayContaining(['place', 'pick', 'next', 'bexit']));

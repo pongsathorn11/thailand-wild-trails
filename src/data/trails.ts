@@ -18,7 +18,7 @@ export interface Poi {
   subject?: string; prop?: string; item?: string; nameKey?: string; linesKey?: string; n?: number;
   seasons?: Season[]; seasonMsg?: string; photo?: string; rare?: RareShot;
 }
-export interface Decor { type: 'falls' | 'karst'; x: number; y: number }
+export interface Decor { type: 'falls' | 'karst' | 'elephant' | 'elephantSign'; x: number; y: number }
 export interface TrailDef {
   id: string; parkId: string; parkKey: string; trailKey: string;
   region: Region; difficulty: number; diffKey: string; realInfoKey: string;
@@ -49,6 +49,14 @@ const kmpStreamX = (y: number) => 27 + Math.round(1.6 * Math.sin(y * 0.22));
 const erawanStreamX = (y: number) => 29 + Math.round(1.2 * Math.sin(y * 0.3));
 export const ERAWAN_TIERS = [42, 36, 30, 24, 18, 12, 6];
 const ksRiverY = (x: number) => 25 + Math.round(2 * Math.sin(x * 0.13));
+
+// Haew Narok (Khao Yai, Nakhon Nayok side): a gorge river with a 3-tier fall, and the small Huay Samor Poon stream crossed on a bridge
+const hnRiverX = (y: number) => 50 + Math.round(1.2 * Math.sin(y * 0.2));
+const hnStreamX = (y: number) => 20 + Math.round(Math.sin(y * 0.3));
+export const HN_FALLS = [14, 22, 30];
+// Khao Chamao (Rayong): a stream climbing past 8 tiers
+const cmStreamX = (y: number) => 30 + Math.round(1.4 * Math.sin(y * 0.25));
+export const CHAMAO_TIERS = [44, 39, 34, 29, 24, 19, 13, 7];
 const KS_KARSTS: [number, number][] = [[8, 4], [20, 3], [33, 5], [47, 3], [60, 9], [12, 43], [28, 44], [52, 42]];
 
 export const TRAILS: TrailDef[] = [
@@ -207,6 +215,88 @@ export const TRAILS: TrailDef[] = [
     ],
     litterCount: 6,
     bird: { kind: 'hornbill', subject: 'hornbill', home: [26, 12], fleeSpots: [[26, 12], [40, 10], [14, 12], [50, 12], [36, 9]] },
+  },
+  {
+    id: 'khao-yai-haew-narok', parkId: 'khao-yai', parkKey: 'park_khaoyai', trailKey: 'trail_haewnarok',
+    region: 'central', difficulty: 2, diffKey: 'diff_2', realInfoKey: 'real_info_haewnarok',
+    realData: { distanceKm: 1, elevationM: null, tiers: 3, verified: false, source: '04-parks-data.md' },
+    unlock: { level: 2, trail: 'doi-inthanon-kew-mae-pan' }, startHour: 8, climateC: 9,
+    checkpointId: null, goalId: 'platform', objKeys: { checkpoint: null, goal: 'obj_goal_haewnarok' },
+    stampKeys: ['stamp_top_haewnarok', 'stamp_bottom_haewnarok'], signKey: 'sign_haewnarok',
+    // flat forest walk, the bridge over Huay Samor Poon, then the steep steps down to the viewing platform
+    waypoints: [[5, 40], [10, 39], [15, 38], [20, 37], [25, 35], [30, 33], [35, 30], [39, 27], [42, 24], [44, 22]],
+    steepSegments: [[7, 9]],
+    start: [5, 40],
+    gen: {
+      seed: 20261122, waterBase: '#3a8aa0',
+      zoneAt: (x, y) => (x >= 37 ? 'gorge' : x >= 26 && y >= 37 ? 'clearing' : 'evergreen'),
+      water: (x, y) => {
+        const rx = hnRiverX(y);
+        if (x === rx || x === rx + 1 || x === hnStreamX(y)) return true;
+        return HN_FALLS.some((fy) => ((x - hnRiverX(fy) - 0.5) / 2) ** 2 + ((y - fy) / 1.3) ** 2 <= 1);
+      },
+      // gorge walls on both sides of the river where it drops
+      rock: (x, y) => { const d = Math.abs(x - hnRiverX(y) - 0.5); return y >= 6 && y <= 38 && d >= 2 && d <= 3.5; },
+      zones: {
+        evergreen: { base: [T.MOSS, T.GRASS], baseP: 0.75, tree: 'broad', density: 0.34 },
+        clearing: { base: [T.GRASS, T.TALL], baseP: 0.55, tree: 'broad', density: 0.05 },
+        gorge: { base: [T.MOSS, T.GRASS], baseP: 0.8, tree: 'broad', density: 0.22 },
+      },
+    },
+    decor: [
+      ...HN_FALLS.map((fy) => ({ type: 'falls' as const, x: hnRiverX(fy - 2), y: fy - 1 })),
+      { type: 'elephant', x: 32, y: 43 },
+      { type: 'elephantSign', x: 12, y: 41 },
+    ],
+    pois: [
+      { id: 'start', type: 'sign', x: 7, y: 42 },
+      { id: 'stall1', type: 'stall', x: 3, y: 38, nameKey: 'stall_haewnarok' },
+      { id: 'guide', type: 'npc', x: 9, y: 37, linesKey: 'guide_haewnarok' },
+      { id: 'rest1', type: 'bench', x: 26, y: 37 },
+      { id: 'elephants', type: 'viewpoint', x: 30, y: 36, subject: 'wildElephant' },
+      { id: 'secret', type: 'secret', x: 21, y: 10, subject: 'secretHaewNarok' },
+      { id: 'platform', type: 'goal', x: 45, y: 22, photo: 'haewNarok', rare: { subject: 'haewNarokRainbow', weather: 'clear', hourFrom: 10, hourTo: 14 } },
+    ],
+    litterCount: 5,
+    bird: { kind: 'hornbill', subject: 'hornbill', home: [32, 18], fleeSpots: [[32, 18], [14, 20], [28, 8], [40, 40], [10, 28]] },
+  },
+  {
+    id: 'khao-chamao-falls', parkId: 'khao-chamao', parkKey: 'park_khaochamao', trailKey: 'trail_khaochamao',
+    region: 'east', difficulty: 2, diffKey: 'diff_2', realInfoKey: 'real_info_khaochamao',
+    realData: { distanceKm: 1.66, elevationM: null, tiers: 8, verified: false, source: '04-parks-data.md' },
+    unlock: { level: 3, trail: 'khao-yai-haew-narok' }, startHour: 8, climateC: 12,
+    checkpointId: null, goalId: 'tier8', objKeys: { checkpoint: null, goal: 'obj_goal_khaochamao' },
+    stampKeys: ['stamp_top_khaochamao', 'stamp_bottom_khaochamao'], signKey: 'sign_khaochamao',
+    waypoints: [[37, 46], [36, 42], [37, 37], [36, 32], [36, 27], [36, 22], [36, 17], [36, 11], [36, 5]],
+    steepSegments: [[4, 8]],
+    start: [37, 46],
+    gen: {
+      seed: 20261123, waterBase: '#3fa8a8',
+      zoneAt: (_x, y) => (y >= 26 ? 'cmLower' : 'cmUpper'),
+      water: (x, y) => {
+        const sx = cmStreamX(y);
+        if (x === sx || x === sx + 1) return true;
+        return CHAMAO_TIERS.some((ty) => ((x - cmStreamX(ty) - 0.5) / 3) ** 2 + ((y - ty) / 1.5) ** 2 <= 1);
+      },
+      rock: (x, y) => CHAMAO_TIERS.some((ty) => y === ty - 2 && Math.abs(x - cmStreamX(y) - 0.5) <= 3.5 && x !== cmStreamX(y) && x !== cmStreamX(y) + 1),
+      zones: {
+        cmLower: { base: [T.MOSS, T.GRASS], baseP: 0.65, tree: 'broad', density: 0.3 },
+        cmUpper: { base: [T.MOSS, T.GRASS], baseP: 0.8, tree: 'broad', density: 0.36 },
+      },
+    },
+    decor: CHAMAO_TIERS.map((ty) => ({ type: 'falls' as const, x: cmStreamX(ty - 2), y: ty - 1 })),
+    pois: [
+      { id: 'start', type: 'sign', x: 39, y: 46 },
+      { id: 'stall1', type: 'stall', x: 40, y: 44, nameKey: 'stall_khaochamao' },
+      ...CHAMAO_TIERS.slice(0, 7).map((ty, i): Poi => ({ id: 'tier' + (i + 1), type: 'waterfall', x: cmStreamX(ty) + 4, y: ty, subject: 'chamao' + (i + 1), n: i + 1 })),
+      { id: 'carp', type: 'photo', x: 35, y: 40, subject: 'soroCarp', prop: 'carp' },
+      { id: 'rest1', type: 'bench', x: 38, y: 31 },
+      { id: 'rest2', type: 'bench', x: 37, y: 15 },
+      { id: 'secret', type: 'secret', x: 46, y: 20, subject: 'secretChamao' },
+      { id: 'tier8', type: 'goal', x: 36, y: 4, photo: 'chamao8', rare: { subject: 'phaSungMist', weather: 'fog', hourTo: 10 } },
+    ],
+    litterCount: 6,
+    bird: { subject: 'sunbird', home: [42, 26], fleeSpots: [[42, 26], [44, 36], [41, 12], [46, 30]] },
   },
 ];
 

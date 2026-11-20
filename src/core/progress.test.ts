@@ -6,6 +6,7 @@ import { TRAILS } from '../data/trails';
 import th from '../i18n/th.json';
 import { EXTRA } from '../i18n/extra';
 import { STORY_TEXT } from '../i18n/story';
+import { TRAIL_TEXT } from '../i18n/trails';
 import { ACHIEVEMENTS, MEDALS, SKILLS, TITLES, RANKS } from './progress';
 
 const fresh = () => migrateProfile(null);
@@ -42,7 +43,7 @@ describe('achievements, ranks, medals, titles', () => {
   it('every skill, achievement, medal, title and rank has Thai text', () => {
     const keys = [...SKILLS.map((s) => 'skill_' + s.id), ...ACHIEVEMENTS.map((a) => 'ach_' + a.id), ...MEDALS.map((m) => 'medal_' + m.id),
       ...TITLES.map((t) => 'title_' + t.id), ...RANKS.map(([r]) => 'rank_' + r)];
-    const all = { ...th, ...EXTRA.th, ...STORY_TEXT.th }; // the same sources the game merges (src/i18n/index.ts)
+    const all = { ...th, ...EXTRA.th, ...STORY_TEXT.th, ...TRAIL_TEXT.th }; // the same sources the game merges (src/i18n/index.ts)
     for (const k of keys) expect(all, k).toHaveProperty([k]);
   });
 });

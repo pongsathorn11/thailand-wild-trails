@@ -87,7 +87,7 @@ export const EVENTS_DEF: EventDef[] = [
   {
     id: 'plantingSeason', icon: '🌱', season: 'rain', from: 1, to: 5,
     goals: [{ kind: 'plant', count: 4 }, { kind: 'harvest', count: 2 }],
-    photo: { subjects: ['erawan1', 'erawan2', 'erawan3', 'erawan4', 'erawan5', 'erawan6', 'erawan7', 'bangHuaRaet', 'wingHin', 'tonKloi'], mult: 1.5 },
+    photo: { subjects: ['erawan1', 'erawan2', 'erawan3', 'erawan4', 'erawan5', 'erawan6', 'erawan7', 'bangHuaRaet', 'wingHin', 'tonKloi', 'haewNarok', 'chamao1', 'chamao2', 'chamao3', 'chamao4', 'chamao5', 'chamao6', 'chamao7', 'chamao8'], mult: 1.5 },
     exp: 80, coins: 40,
   },
 ];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import th from '../i18n/th.json';
-import en from '../i18n/en.json';
+import { ALL_STRINGS } from '../i18n';
+const th = ALL_STRINGS.th, en = ALL_STRINGS.en;
 import { TRAILS } from './trails';
 
 /** Every text key a trail refers to must exist in both languages. */

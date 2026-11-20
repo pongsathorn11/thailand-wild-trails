@@ -6,7 +6,8 @@ import { migrateProfile } from './profile';
 import { TRAILS } from '../data/trails';
 import { PHOTO_EXP } from '../data/photos';
 import { buildWorld } from './world';
-import th from '../i18n/th.json';
+import { ALL_STRINGS } from '../i18n';
+const th = ALL_STRINGS.th;
 
 const ctx = { weather: 'clear' as const, zone: 'forest', hasPhoto: () => false, active: [] as string[] };
 

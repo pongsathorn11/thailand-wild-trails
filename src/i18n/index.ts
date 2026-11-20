@@ -2,9 +2,12 @@ import th from './th.json';
 import en from './en.json';
 import { EXTRA } from './extra';
 import { STORY_TEXT } from './story';
+import { TRAIL_TEXT } from './trails';
 
 export type Lang = 'th' | 'en';
-const STR: Record<Lang, Record<string, unknown>> = { th: { ...th, ...EXTRA.th, ...STORY_TEXT.th }, en: { ...en, ...EXTRA.en, ...STORY_TEXT.en } };
+const STR: Record<Lang, Record<string, unknown>> = { th: { ...th, ...EXTRA.th, ...STORY_TEXT.th, ...TRAIL_TEXT.th }, en: { ...en, ...EXTRA.en, ...STORY_TEXT.en, ...TRAIL_TEXT.en } };
+/** Every string source merged (what the game looks up); tests check keys against this. */
+export const ALL_STRINGS = STR;
 let lang: Lang = 'th';
 
 export const setLang = (l: Lang): void => { lang = l; };

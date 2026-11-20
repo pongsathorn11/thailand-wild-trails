@@ -66,8 +66,33 @@ export function buildTrailArt(): Record<string, PropArt> {
       blob(c, x, y - 6, 4, '#7a1e1a'); blob(c, x, y - 6, 2, '#3a0e0c');
     }),
     'rafflesia-bud': art(24, 16, 12, 15, (c, x, y) => { blob(c, x, y - 4, 4, '#6b3a22'); blob(c, x - 1, y - 5, 2, '#8a5030'); }),
+    // a wild elephant and calf, seen from a distance across the clearing (never walk up to them)
+    elephant: art(40, 28, 20, 26, (c, x, y) => {
+      const body = (bx: number, s: number) => {
+        R(c, 'rgba(0,0,0,0.22)', bx - 9 * s, y - 1, 18 * s, 2);
+        for (const lx of [-7, -3, 2, 6]) R(c, '#6e6a70', bx + lx * s, y - 7 * s, 2 * s, 7 * s);
+        blob(c, bx, y - 11 * s, Math.round(8 * s), '#7d7a80'); blob(c, bx - 2 * s, y - 13 * s, Math.round(6 * s), '#8c898f');
+        blob(c, bx + 8 * s, y - 14 * s, Math.round(4 * s), '#7d7a80');                        // head
+        R(c, '#6e6a70', bx + 10 * s, y - 12 * s, 2 * s, 9 * s); R(c, '#6e6a70', bx + 11 * s, y - 4 * s, 2 * s, 2 * s); // trunk
+        R(c, '#5e5a60', bx + 5 * s, y - 16 * s, 3 * s, 5 * s);                               // ear
+        R(c, '#222', bx + 9 * s, y - 15 * s, 1, 1);
+      };
+      body(x - 4, 1); body(x + 11, 0.6);
+    }),
+    // soro brook carp (ปลาพลวง) in a stream pool
+    carp: art(22, 12, 11, 10, (c, x, y) => {
+      blob(c, x, y - 4, 7, '#3f8fb8'); blob(c, x, y - 5, 5, '#5aaee0');
+      for (const [fx, fy] of [[-4, -6], [1, -4], [3, -7]]) { R(c, '#4a5560', x + fx, y + fy, 4, 2); R(c, '#4a5560', x + fx - 1, y + fy, 1, 2); R(c, '#cfd8e0', x + fx + 3, y + fy, 1, 1); }
+      R(c, '#e8f4fb', x - 6, y - 8, 2, 1); R(c, '#e8f4fb', x + 4, y - 3, 2, 1);
+    }),
+    // yellow warning sign: wild elephants cross here
+    elephantSign: art(16, 22, 8, 21, (c, x, y) => {
+      R(c, '#6b4528', x - 1, y - 10, 2, 10);
+      R(c, '#e8b830', x - 6, y - 20, 12, 11); R(c, '#2a2a2a', x - 6, y - 20, 12, 1); R(c, '#2a2a2a', x - 6, y - 10, 12, 1);
+      R(c, '#2a2a2a', x - 3, y - 17, 6, 3); R(c, '#2a2a2a', x + 2, y - 15, 2, 3); R(c, '#2a2a2a', x - 3, y - 14, 1, 2); R(c, '#2a2a2a', x + 1, y - 14, 1, 2);
+    }),
   };
-  for (let n = 1; n <= 7; n++) out['tier' + n] = art(14, 20, 7, 19, (c, x, y) => {
+  for (let n = 1; n <= 8; n++) out['tier' + n] = art(14, 20, 7, 19, (c, x, y) => {
     R(c, '#6b4528', x - 1, y - 10, 2, 10); R(c, '#2a7db0', x - 6, y - 17, 12, 8);
     for (let i = 0; i < n; i++) R(c, '#f4ecd8', x - 5 + (i % 4) * 3, y - 16 + Math.floor(i / 4) * 3, 2, 2);
   });

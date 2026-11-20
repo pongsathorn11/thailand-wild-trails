@@ -175,7 +175,12 @@ export class HikeScene extends Phaser.Scene {
     return this.add.image(fx - ax, fy - ay, `prop-${key}`).setOrigin(0).setDepth(depth);
   }
 
-  private placeDecor(type: 'falls' | 'karst', x: number, y: number): void {
+  private placeDecor(type: 'falls' | 'karst' | 'elephant' | 'elephantSign', x: number, y: number): void {
+    if (type === 'elephant' || type === 'elephantSign') {
+      const [ax, ay] = this.anchor(type), fx = x * TS + 8, fy = y * TS + 14;
+      this.add.image(fx - ax, fy - ay, 'prop-' + type).setOrigin(0).setDepth(fy);
+      return;
+    }
     if (type === 'falls') {
       const [ax, ay] = this.anchor('falls'), fx = x * TS + 16, fy = y * TS + 12;
       this.add.sprite(fx - ax, fy - ay, 'falls', 0).setOrigin(0).setDepth(fy - 30).play('falls-flow');

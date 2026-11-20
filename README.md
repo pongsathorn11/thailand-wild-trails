@@ -39,7 +39,8 @@ node tools/coop-smoke.mjs   # two-client check against a running co-op server (n
 ```
 
 The game starts at the title screen (character creator); `?trail=<id>` skips straight to packing for a trail (ignores unlocks, for testing).
-Trail ids: `doi-inthanon-kew-mae-pan`, `phu-kradueng-summit`, `erawan-waterfall`, `khao-sok-ton-kloi`.
+Trail ids: `doi-inthanon-kew-mae-pan`, `phu-kradueng-summit`, `erawan-waterfall`, `khao-sok-ton-kloi`, `khao-yai-haew-narok`, `khao-chamao-falls`.
+To add a trail: data in `src/data/trails.ts`, text in `src/i18n/trails.ts`, facts and sources in `docs/knowledge/04-parks-data.md`, and its id in `public.trail_ids()` (a new migration); the tests check that each of these is in place.
 
 ## Layout
 
@@ -77,6 +78,7 @@ Rules of the codebase (from the original brief, section 22):
 | M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
 | M11 Stories + events | three camp NPCs (ranger Uncle Kham, cook Auntie Daeng, photographer Fah) with 3-chapter storylines, friendship hearts and story titles; seasonal events on the in-game calendar (Sea of Mist Festival, Hiking Festival, Planting Season) with goals, festival stamps, more fog / bonus photo EXP; rules in `src/core/story.ts`, content in `src/data/story.ts`, text in `src/i18n/story.ts` | ✅ |
+| M12 Central + East trails | Khao Yai: Haew Narok walk (Nakhon Nayok side = Central; bridge over Huay Samor Poon, steep steps to the viewpoint, wild elephants seen from afar), Khao Chamao (Rayong, East): 8-tier waterfall with soro brook carp; every region now has a trail; trail ids kept in one database function | ✅ |
 | M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · ✅ server live |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.

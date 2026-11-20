@@ -53,7 +53,7 @@ export const ACHIEVEMENTS: { id: string; icon: string; value: (p: Profile) => nu
   { id: 'harvest', icon: '🌱', value: (p) => stats(p).harvests || 0, tiers: [1, 10, 30, 60] },
   { id: 'cook', icon: '🍳', value: (p) => stats(p).cooked || 0, tiers: [1, 10, 25, 50] },
   { id: 'decorate', icon: '🪴', value: (p) => A(p).camp?.placed?.length || 0, tiers: [1, 3, 6, 10] },
-  { id: 'secrets', icon: '✨', value: (p) => album(p).filter((a) => ['secret', 'secretPkd', 'secretErawan', 'secretKhaosok'].includes(a.subjectId)).length, tiers: [1, 2, 4] },
+  { id: 'secrets', icon: '✨', value: (p) => album(p).filter((a) => ['secret', 'secretPkd', 'secretErawan', 'secretKhaosok', 'secretHaewNarok', 'secretChamao'].includes(a.subjectId)).length, tiers: [1, 2, 4] },
   { id: 'level', icon: '⭐', value: (p) => levelInfo(p.exp).level, tiers: [2, 5, 8, 12] },
 ];
 export const RANKS: [string, number][] = [
@@ -104,6 +104,8 @@ export const PARKS: { id: string; nameKey: string; region: Region; open: boolean
   { id: 'erawan', nameKey: 'park_erawan', region: 'west', open: true },
   { id: 'khao-laem', nameKey: 'park_khaolaem', region: 'west', open: false },
   { id: 'khao-sok', nameKey: 'park_khaosok', region: 'south', open: true },
+  { id: 'khao-yai', nameKey: 'park_khaoyai', region: 'central', open: true },
+  { id: 'khao-chamao', nameKey: 'park_khaochamao', region: 'east', open: true },
 ];
 
 export type ProgressEvent =

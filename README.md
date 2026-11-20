@@ -76,7 +76,7 @@ Rules of the codebase (from the original brief, section 22):
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
 | M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
-| M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · server: connect once in Render |
+| M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · ✅ server live |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.
 
@@ -160,6 +160,7 @@ different address, change it there and push. The server only accepts WebSocket c
 
 One-time steps in the dashboards (they can't be done from code):
 
-1. **Render:** open https://render.com/deploy?repo=https://github.com/pongsathorn11/thailand-wild-trails, sign in, and approve the blueprint.
+1. **Render:** done. Blueprint `thailand-wild-trails` → web service `thailand-wild-trails-coop` (https://thailand-wild-trails-coop.onrender.com).
+   To recreate it: open https://render.com/deploy?repo=https://github.com/pongsathorn11/thailand-wild-trails, sign in, and approve the blueprint.
    On the free plan the server sleeps after ~15 min without players, so the first co-op join after a pause takes about a minute.
 2. **Supabase → Authentication:** URL Configuration and the Google provider, as listed under *Log in / Register* above.

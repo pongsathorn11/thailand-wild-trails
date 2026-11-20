@@ -11,27 +11,27 @@ import { COOP_URL, coopPlan } from '../net/coop';
 import { cleanRoomCode, newRoomCode } from '../core/coop';
 
 const CSS = `
-#twt-online{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(10,20,14,.55);font-family:Mitr,"Noto Sans Thai",Tahoma,sans-serif;color:#f4ecd8}
-#twt-online .card{width:min(520px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;background:rgba(30,36,43,.97);border:2px solid #59626e;border-radius:14px;padding:16px 18px}
-#twt-online h2{margin:0 0 10px;font-size:19px;color:#ffe9a8;display:flex;justify-content:space-between;align-items:center}
-#twt-online .x{background:none;border:0;color:#cfc3a6;font-size:20px;cursor:pointer;padding:4px 8px}
+#twt-online{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(15,23,12,.55);font-family:Mitr,"Noto Sans Thai",Tahoma,sans-serif;color:#3a2414}
+#twt-online .card{width:min(540px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;background:#f2e2bc;border:4px solid #5c3a1e;box-shadow:inset 0 0 0 3px #fbf0d4,inset 0 -6px 0 3px #e3c98f;padding:0 18px 16px}
+#twt-online h2{margin:0 -18px 14px;padding:10px 14px 10px 18px;font-size:19px;color:#fff4dc;text-shadow:0 2px 0 #3a2213;background:#8b5a2b;border-bottom:4px solid #3a2213;box-shadow:inset 0 3px 0 #b47a42;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0}
+#twt-online .x{background:#5f3b1c;border:3px solid #2b180c;color:#fff4dc;font-size:16px;cursor:pointer;padding:2px 10px;min-height:36px;border-radius:0}
 #twt-online .tabs,#twt-online .trails{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-#twt-online button{font:inherit;border-radius:9px;border:1px solid #59626e;background:#3a4450;color:#f4ecd8;padding:8px 12px;cursor:pointer;min-height:40px}
-#twt-online button.on{background:#5a4f2c;border-color:#ffe9a8;color:#ffe9a8}
-#twt-online button.go{background:#3f8a2a;border-color:#7cc04a;color:#fff}
-#twt-online button:disabled{opacity:.5;cursor:default}
-#twt-online input{font:inherit;width:100%;box-sizing:border-box;margin:4px 0 10px;padding:9px 11px;border-radius:8px;border:2px solid #59626e;background:#1b2026;color:#f4ecd8;outline:none}
-#twt-online input:focus{border-color:#ffe9a8}
-#twt-online label{font-size:13px;color:#cfd6dd}
+#twt-online button{font:inherit;border-radius:0;border:3px solid #2b180c;background:#8b5a2b;box-shadow:inset 0 3px 0 #b47a42,inset 0 -3px 0 #5f3b1c;color:#fff4dc;padding:8px 12px;cursor:pointer;min-height:44px}
+#twt-online button.on{background:#f2c14e;box-shadow:inset 0 3px 0 #f8dc8a,inset 0 -3px 0 #c99a2e;color:#3a2213;font-weight:600}
+#twt-online button.go{background:#5f9e3a;border-color:#24461a;box-shadow:inset 0 4px 0 #8cc65a,inset 0 -5px 0 #3d7326;color:#fff;font-weight:600;text-shadow:0 2px 0 #24461a}
+#twt-online button:disabled{background:#c9b48c;border-color:#8a7050;box-shadow:none;color:#7a6a50;cursor:default}
+#twt-online input{font:inherit;width:100%;box-sizing:border-box;margin:4px 0 10px;padding:9px 11px;border-radius:0;border:3px solid #5c3a1e;background:#fbf0d4;color:#3a2414;outline:none}
+#twt-online input:focus{border-color:#f2c14e;box-shadow:0 0 0 2px #f2c14e}
+#twt-online label{font-size:13px;color:#5c4a36}
 #twt-online .row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
 #twt-online .status{font-size:14px;margin:4px 0 8px}
-#twt-online .msg{font-size:13px;color:#cfe3b8;min-height:18px;margin:6px 0}
-#twt-online .note{font-size:12px;color:#9aa3ad;margin-top:10px}
+#twt-online .msg{font-size:13px;color:#3d7326;min-height:18px;margin:6px 0}
+#twt-online .note{font-size:12px;color:#7a5a3a;margin-top:10px}
 #twt-online table{width:100%;border-collapse:collapse;font-size:14px}
-#twt-online td,#twt-online th{padding:7px 6px;border-bottom:1px solid #3a4450;text-align:left}
-#twt-online th{color:#cfd6dd;font-weight:600;font-size:12.5px}
-#twt-online tr.me td{color:#ffe9a8;font-weight:600}
-#twt-online .code{font-size:38px;letter-spacing:8px;color:#ffe9a8;text-align:center;margin:8px 0}
+#twt-online td,#twt-online th{padding:7px 6px;border-bottom:3px solid #d8bd84;text-align:left}
+#twt-online th{color:#7a5a3a;font-weight:600;font-size:12.5px}
+#twt-online tr.me td{color:#3d7326;font-weight:600;background:#fbf0d4}
+#twt-online .code{font-family:"Pixelify Sans",Mitr,sans-serif;font-size:42px;letter-spacing:8px;color:#3a2213;text-align:center;margin:8px auto;background:#f2c14e;border:4px solid #3a2213;max-width:260px}
 #twt-online input.codeIn{text-transform:uppercase;letter-spacing:6px;font-size:20px;text-align:center}
 #twt-online td.num{text-align:right;font-variant-numeric:tabular-nums}
 `;

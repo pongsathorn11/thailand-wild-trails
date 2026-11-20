@@ -13,8 +13,8 @@ import { MINI, MINI_SIT_FRAME, miniFrameIndex } from '../gfx/paint';
 import { installMiniSheet, installStrip } from '../gfx/sheets';
 import { flagStripe, paintTitleBackground, TITLE_SCALE } from '../gfx/titleArt';
 import { getLang, setLang, t } from '../i18n';
+import { C, FONT, greenButton, notch, paper, PIXEL_FONT, TX, wood, woodButton } from '../ui/theme';
 
-const FONT = 'Mitr, "Noto Sans Thai", Tahoma, sans-serif';
 const BODIES: Body[] = ['male', 'female'];
 const THUMB = 48;
 interface Hit { x: number; y: number; w: number; h: number; fn: () => void }
@@ -50,10 +50,10 @@ export class TitleScene extends Phaser.Scene {
 
     const inp = this.nameInput = document.createElement('input');
     inp.id = 'char-name'; inp.maxLength = NAME_MAX * 2; inp.autocomplete = 'off'; inp.spellcheck = false;
-    Object.assign(inp.style, { position: 'absolute', display: 'none', zIndex: '5', boxSizing: 'border-box', border: '2px solid #59626e', borderRadius: '8px',
-      background: '#1b2026', color: '#f4ecd8', font: `400 15px ${FONT}`, padding: '0 10px', outline: 'none' });
-    inp.addEventListener('focus', () => { inp.style.borderColor = '#ffe9a8'; this.row = TITLE_ROWS.indexOf('name'); });
-    inp.addEventListener('blur', () => { inp.style.borderColor = '#59626e'; inp.value = this.profile.name; });
+    Object.assign(inp.style, { position: 'absolute', display: 'none', zIndex: '5', boxSizing: 'border-box', border: '3px solid #5c3a1e', borderRadius: '0',
+      background: '#fbf0d4', color: '#3a2414', font: `400 15px ${FONT}`, padding: '0 10px', outline: 'none' });
+    inp.addEventListener('focus', () => { inp.style.borderColor = '#f2c14e'; this.row = TITLE_ROWS.indexOf('name'); });
+    inp.addEventListener('blur', () => { inp.style.borderColor = '#5c3a1e'; inp.value = this.profile.name; });
     inp.addEventListener('input', () => { this.profile.name = cleanName(inp.value); saveProfile(this.profile); });
     inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === 'Escape') inp.blur(); });
     inp.value = this.profile.name;
@@ -106,11 +106,11 @@ export class TitleScene extends Phaser.Scene {
   }
 
   // ---------- pooled drawing ----------
-  private text(s: string, x: number, y: number, size = 14, color = '#f4ecd8', align: 'left' | 'center' | 'right' = 'left', bold = false): Phaser.GameObjects.Text {
+  private text(s: string, x: number, y: number, size = 14, color = TX.cream, align: 'left' | 'center' | 'right' = 'left', bold = false, font = FONT): Phaser.GameObjects.Text {
     let tx = this.texts[this.usedT];
     if (!tx) { tx = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '14px' }).setDepth(3); this.texts.push(tx); }
     this.usedT++;
-    tx.setVisible(true).setAlpha(1).setText(s).setFontSize(size).setColor(color).setFontStyle(bold ? 'bold' : 'normal').setLineSpacing(0).setShadow(0, 0, '', 0);
+    tx.setVisible(true).setAlpha(1).setCrop().setText(s).setFontFamily(font === PIXEL_FONT && size < 16 ? FONT : font).setFontSize(size).setColor(color).setFontStyle(bold ? 'bold' : 'normal').setLineSpacing(0).setShadow(0, 0, '', 0);
     return tx.setOrigin(align === 'left' ? 0 : align === 'center' ? 0.5 : 1, 0.5).setPosition(Math.round(x), Math.round(y));
   }
   /** Thai has no spaces between words, so wrap by character when a line has no spaces. */
@@ -132,16 +132,12 @@ export class TitleScene extends Phaser.Scene {
     return im.setTexture(key, frame).setVisible(true).setAlpha(1).setDepth(depth).setOrigin(ox, oy).setPosition(Math.round(x), Math.round(y)).setDisplaySize(w, h);
   }
   private woodPlank(x: number, y: number, w: number, h: number, glow: boolean): void {
-    const g = this.g;
-    g.fillStyle(0x4a2e18, 1).fillRoundedRect(x, y, w, h, 8);
-    g.fillStyle(0x7a4e2a, 1).fillRoundedRect(x + 3, y + 3, w - 6, h - 6, 6);
-    g.fillStyle(0x8a5e38, 1).fillRect(x + 8, y + 6, w - 16, 2);
-    g.fillStyle(0x000000, 0.12); for (let i = 1; i < 4; i++) g.fillRect(x + 6, y + (h / 4) * i, w - 12, 1);
-    if (glow) g.lineStyle(3, 0xffe9a8, 1).strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 10);
+    if (glow) notch(this.g, x - 4, y - 4, w + 8, h + 8, 4, C.gold);
+    wood(this.g, x, y, w, h);
   }
-  private slate(x: number, y: number, w: number, h: number): void {
-    this.g.fillStyle(0x1e242b, 0.94).fillRoundedRect(x, y, w, h, 12);
-    this.g.lineStyle(2, 0x59626e, 1).strokeRoundedRect(x, y, w, h, 12);
+  private slate(x: number, y: number, w: number, h: number): void { paper(this.g, x, y, w, h); }
+  private sign(s: string, x: number, y: number, size: number, color: string = TX.cream, align: 'left' | 'center' | 'right' = 'left', font = FONT): Phaser.GameObjects.Text {
+    return this.text(s, x, y, size, color, align, true, font).setShadow(0, size >= 24 ? 3 : 2, TX.woodShadow, 0, false, true);
   }
   private shadow(x: number, y: number, rx: number, ry: number, a: number): void { this.g.fillStyle(0x000000, a).fillEllipse(x, y, rx * 2, ry * 2); }
 
@@ -183,20 +179,25 @@ export class TitleScene extends Phaser.Scene {
     const hit = (x: number, y: number, w: number, h: number, fn: () => void) => this.hits.push({ x, y, w, h, fn });
 
     // logo, profile line, language chip
-    g.fillStyle(0x1e242b, 0.78).fillRoundedRect(14, 12, narrow ? IW - 28 : 330, narrow ? 40 : 52, 10);
-    this.text(t('title'), 28, narrow ? 32 : 30, narrow ? 17 : 21, '#ffe9a8', 'left', true);
-    if (!narrow) {
+    if (narrow) {
+      wood(g, 12, 10, IW - 24, 46);
+      const a = this.sign('THAILAND ', 26, 33, 18, TX.cream, 'left', PIXEL_FONT);
+      this.sign('WILD TRAILS', 26 + a.width, 33, 18, TX.greenOnWood, 'left', PIXEL_FONT);
+    } else {
+      wood(g, 14, 10, 340, 62);
+      const a = this.sign('THAILAND ', 28, 32, 24, TX.cream, 'left', PIXEL_FONT);
+      this.sign('WILD TRAILS', 28 + a.width, 32, 24, TX.greenOnWood, 'left', PIXEL_FONT);
       const st = (p as Profile & { stats?: { trailsCompleted?: number } }).stats;
-      this.text(t('profile', { lv: levelInfo(p.exp).level, r: t('rank_' + RANKS[rankIndex(p)][0]), c: p.coins, n: st?.trailsCompleted ?? 0 }), 28, 52, 11.5, '#cfc3a6');
+      this.text(t('profile', { lv: levelInfo(p.exp).level, r: t('rank_' + RANKS[rankIndex(p)][0]), c: p.coins, n: st?.trailsCompleted ?? 0 }), 28, 56, 11.5, TX.creamDim).setCrop(0, 0, 312, 30);
     }
-    const lw = 74, lx = narrow ? IW - 14 - lw - 6 : IW - 20 - lw, ly = narrow ? 17 : 22;
-    g.fillStyle(0x3a4450, 1).fillRoundedRect(lx, ly, lw, 30, 15);
-    this.text(getLang() === 'th' ? 'ไทย · EN' : 'TH · Eng', lx + lw / 2, ly + 15, 12.5, '#f4ecd8', 'center', true);
+    const lw = 78, lx = narrow ? IW - 14 - lw - 6 : IW - 20 - lw, ly = narrow ? 18 : 24;
+    woodButton(g, lx, ly - 2, lw, 34);
+    this.text(getLang() === 'th' ? 'ไทย · EN' : 'TH · Eng', lx + lw / 2, ly + 15, 12.5, TX.cream, 'center', true);
     hit(lx, ly, lw, 30, () => this.toggleLang());
     // online chip: accounts, cloud save, leaderboard
     const cw = narrow ? 36 : 118, cx = lx - cw - 6, mark = cloud.status === 'synced' ? ' ✓' : cloud.status === 'error' ? ' !' : '';
-    g.fillStyle(cloud.signedIn ? 0x3f6a3a : 0x3a4450, 1).fillRoundedRect(cx, ly, cw, 30, 15);
-    this.text(narrow ? '☁️' : t('on_title') + mark, cx + cw / 2, ly + 15, 12.5, '#f4ecd8', 'center', true);
+    woodButton(g, cx, ly - 2, cw, 34, false, cloud.signedIn);
+    this.text(narrow ? '☁️' : t('on_title') + mark, cx + cw / 2, ly + 15, 12.5, cloud.signedIn ? TX.woodShadow : TX.cream, 'center', true);
     hit(cx, ly, cw, 30, () => this.openOnline());
 
     const PW = narrow ? IW - 24 : 330, px = narrow ? 12 : IW - PW - 20;
@@ -210,7 +211,7 @@ export class TitleScene extends Phaser.Scene {
         const x = 12 + i * (bw + 12), sel = p.body === b;
         this.woodPlank(x, by, bw, 52, sel);
         this.img(`head-${b}`, 0, x + 8, by + 6, 40, 40);
-        this.text((b === 'male' ? '♂ ' : '♀ ') + t('char_' + b), x + 54, by + 26, 15, sel ? '#ffe9a8' : '#e8dcc0', 'left', true);
+        this.sign((b === 'male' ? '♂ ' : '♀ ') + t('char_' + b), x + 54, by + 26, 15, sel ? TX.gold : TX.cream);
         hit(x, by, bw, 52, pickBody(b));
       });
       const s = 3, fy = by + 52 + 12 + 58 * s;
@@ -227,8 +228,8 @@ export class TitleScene extends Phaser.Scene {
         const x = 20 + i * (cw + 20), sel = p.body === b;
         this.woodPlank(x, top, cw, 82, sel);
         this.text(b === 'male' ? '♂' : '♀', x + 30, top + 26, 26, b === 'male' ? '#6fb8f0' : '#f07ab0', 'center', true);
-        this.text(t('char_' + b), x + 54, top + 26, 20, '#ffe9a8', 'left', true);
-        this.text(this.wrap(t('cdesc_' + b), cw - 36, 12.5), x + 18, top + 52, 12.5, '#f4ecd8').setOrigin(0, 0).setLineSpacing(2).setY(top + 44);
+        this.sign(t('char_' + b), x + 54, top + 26, 20, sel ? TX.gold : TX.cream);
+        this.text(this.wrap(t('cdesc_' + b), cw - 36, 12.5), x + 18, top + 52, 12.5, TX.creamDim).setOrigin(0, 0).setLineSpacing(2).setY(top + 44);
         const cx = x + cw * 0.38;
         this.shadow(cx, feetY, 20 * s, 4 * s, 0.18);
         this.img(`chibi-${b}`, sel ? (blink ? CHIBI_BLINK_FRAME : walkF % 2) : 0, cx, feetY, CHIBI.W * s, CHIBI.H * s, CHIBI.FX / CHIBI.W, CHIBI.FY / CHIBI.H);
@@ -242,25 +243,25 @@ export class TitleScene extends Phaser.Scene {
         g.fillStyle(0xf4f4f4, 1).fillRect(pxs + 4, sy - 24, 7, 8); g.fillStyle(0xc8955a, 1).fillRect(pxs + 5, sy - 23, 5, 2);
         this.img('campfire', fireF, pxs + 30, sy + 6, 48, 48, 0.5, 1);
         if (sel) {
-          g.fillStyle(0x5aa63a, 1).fillRoundedRect(x + cw - 74, top + 92, 66, 24, 12);
-          this.text('✓ ' + t('selected'), x + cw - 41, top + 104, 12, '#ffffff', 'center', true);
+          notch(g, x + cw - 78, top + 92, 70, 26, 3, C.greenDark); g.fillStyle(C.green, 1).fillRect(x + cw - 75, top + 95, 64, 20);
+          this.text('✓ ' + t('selected'), x + cw - 43, top + 105, 12, '#ffffff', 'center', true);
         }
         hit(x, top, cw, feetY - top + 10, pickBody(b));
       });
       // starting info + story
       const iy = IH - 150, wide = areaW >= 640, iw = wide ? Math.min(420, areaW * 0.5) : areaW;
       this.slate(20, iy, iw, 118);
-      this.text(t('info_title'), 36, iy + 22, 15, '#ffe9a8', 'left', true);
+      this.text(t('info_title'), 36, iy + 22, 15, TX.ink, 'left', true);
       [['🥾', 'info_aptitude'], ['⭐', 'info_skill'], ['🎒', 'info_items']].forEach(([ic, k], i) => {
         this.text(ic, 40, iy + 50 + i * 24, 15, '#ffffff', 'center');
-        const tx = this.text(t(k), 58, iy + 50 + i * 24, 12.5, '#e8dcc0');
+        const tx = this.text(t(k), 58, iy + 50 + i * 24, 12.5, TX.inkSoft);
         tx.setCrop(0, 0, iw - 48, 40);
       });
       if (wide) {
         const sxp = 20 + iw + 16, sw = areaW - iw - 16;
         this.slate(sxp, iy, sw, 118);
-        this.text(this.wrap(t('story'), sw - 40, 14), sxp + 20, iy + 18, 14, '#f4ecd8').setOrigin(0, 0).setLineSpacing(4);
-        g.fillStyle(0x3a4450, 1).fillPoints([
+        this.text(this.wrap(t('story'), sw - 40, 14), sxp + 20, iy + 18, 14, TX.ink).setOrigin(0, 0).setLineSpacing(4);
+        g.fillStyle(C.paperLine, 1).fillPoints([
           { x: sxp + 20, y: iy + 110 }, { x: sxp + sw * 0.3, y: iy + 88 }, { x: sxp + sw * 0.45, y: iy + 100 }, { x: sxp + sw * 0.62, y: iy + 84 }, { x: sxp + sw - 20, y: iy + 110 },
         ], true);
       }
@@ -272,15 +273,10 @@ export class TitleScene extends Phaser.Scene {
     // start button
     const sx = narrow ? 12 : px, sw = (narrow ? IW - 24 : PW) - (touch.enabled ? TITLE_SOUND_GAP : 0);
     this.soundY = startY + startH / 2 - 2;
-    g.fillStyle(0x2a5a1a, 1).fillRoundedRect(sx, startY, sw, startH, 14);
-    g.fillStyle(0x5fa53a, 1).fillRoundedRect(sx + 4, startY + 4, sw - 8, startH - 10, 11);
-    g.fillStyle(0x7cc04a, 1).fillRoundedRect(sx + 4, startY + 4, sw - 8, (startH - 10) / 2, { tl: 11, tr: 11, bl: 0, br: 0 });
-    const mh = startH * 0.45, mx = sx + 26, my = startY + startH - 16;
-    g.fillStyle(0x2f6b2f, 1).fillPoints([{ x: mx, y: my }, { x: mx + mh * 0.7, y: my - mh }, { x: mx + mh * 1.1, y: my - mh * 0.55 }, { x: mx + mh * 1.5, y: my - mh * 0.9 }, { x: mx + mh * 2.2, y: my }], true);
-    this.text(t('start') + '  ›', sx + sw / 2 + 24, startY + startH / 2 - 2, narrow ? 22 : 28, '#1e3a12', 'center', true);
-    this.text(t('start') + '  ›', sx + sw / 2 + 22, startY + startH / 2 - 4, narrow ? 22 : 28, '#ffffff', 'center', true);
+    greenButton(g, sx, startY, sw, startH);
+    this.text(t('start') + '  ›', sx + sw / 2, startY + startH / 2 - 4, narrow ? 22 : 28, '#ffffff', 'center', true).setShadow(0, 3, '#24461a', 0, false, true);
     hit(sx, startY, sw, startH, () => this.start());
-    if (!narrow) this.text(t('title_keys'), 20 + (px - 40) / 2, IH - 10, 11.5, 'rgba(30,36,43,0.85)', 'center');
+    if (!narrow) this.text(t('title_keys'), 20 + (px - 40) / 2, IH - 10, 11.5, TX.woodShadow, 'center');
 
     for (let i = this.usedT; i < this.texts.length; i++) this.texts[i].setVisible(false);
     for (let i = this.usedI; i < this.imgs.length; i++) this.imgs[i].setVisible(false);
@@ -311,17 +307,17 @@ export class TitleScene extends Phaser.Scene {
 
   private drawCustomize(px: number, py: number, PW: number, ph: number, narrow: boolean): void {
     const g = this.g, p = this.profile, L = p.looks[p.body];
-    this.slate(px, py, PW, ph);
-    const headH = narrow ? 34 : 48;
-    this.text('👕 ' + t('customize'), px + 16, py + headH / 2 + 2, narrow ? 15 : 18, '#f4ecd8', 'left', true);
-    g.fillStyle(0x59626e, 1).fillRect(px + 12, py + headH, PW - 24, 1);
+    const headH = narrow ? 36 : 48;
+    paper(g, px, py + headH - 8, PW, ph - headH + 8);
+    wood(g, px, py, PW, headH);
+    this.sign('👕 ' + t('customize'), px + 16, py + headH / 2, narrow ? 15 : 17);
     const rows: TitleRow[] = [...LOOK_ROWS, 'name'], rh = (ph - headH - 8) / rows.length;
     let nameShown = false;
     rows.forEach((row, i) => {
       const ry = py + headH + 4 + i * rh, focused = TITLE_ROWS[this.row] === row;
-      if (focused) g.fillStyle(0xffe9a8, 0.08).fillRoundedRect(px + 6, ry, PW - 12, rh - 2, 8);
+      if (focused) { notch(g, px + 8, ry + 2, PW - 16, rh - 4, 3, C.gold); g.fillStyle(C.paperLight, 1).fillRect(px + 11, ry + 5, PW - 22, rh - 10); }
       const labelW = narrow ? 76 : 0, lyy = narrow ? ry + rh / 2 : ry + 12;
-      this.text(t('row_' + row), px + 16, lyy, narrow ? 12.5 : 13.5, focused ? '#ffe9a8' : '#cfd6dd', 'left', true);
+      this.text(t('row_' + row), px + 16, lyy, narrow ? 12.5 : 13.5, focused ? TX.ink : TX.inkSoft, 'left', true);
       const ox = px + 16 + labelW, oy = narrow ? ry + 4 : ry + 24, availW = PW - 32 - labelW, availH = rh - (narrow ? 8 : 28);
       if (row === 'name') {
         const iw = Math.min(availW, 260), ih = Math.max(30, Math.min(38, availH));
@@ -332,10 +328,10 @@ export class TitleScene extends Phaser.Scene {
       const bs = Math.max(22, Math.min(narrow ? 40 : 46, availH, (availW - (n - 1) * 6) / n));
       for (let j = 0; j < n; j++) {
         const bx = ox + j * (bs + 6), by = oy + (availH - bs) / 2, sel = L[lr] === j;
-        g.fillStyle(0x3a4450, 1).fillRoundedRect(bx, by, bs, bs, 7);
+        notch(g, bx, by, bs, bs, 2, C.paperEdge); g.fillStyle(C.woodShade, 1).fillRect(bx + 2, by + 2, bs - 4, bs - 4);
         this.img(`thumb-${lr}-${j}`, 0, bx + 2, by + 2, bs - 4, bs - 4);
-        if (lr === 'acc' && j === 0) this.text('✕', bx + bs - 8, by + 9, 10, '#f4ecd8', 'center', true);
-        if (sel) g.lineStyle(3, 0xffe9a8, 1).strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 8);
+        if (lr === 'acc' && j === 0) this.text('✕', bx + bs - 8, by + 9, 10, TX.cream, 'center', true);
+        if (sel) g.lineStyle(3, C.gold, 1).strokeRect(bx - 2, by - 2, bs + 4, bs + 4);
         this.hits.push({ x: bx, y: by, w: bs, h: bs, fn: () => { this.change(() => setOption(p, lr, j)); this.row = TITLE_ROWS.indexOf(lr); } });
       }
     });

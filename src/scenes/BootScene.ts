@@ -38,7 +38,7 @@ export class BootScene extends Phaser.Scene {
     this.addSheet('hiker', paintMiniSheet(resolveLook(profile.body, profile.looks[profile.body])));
     this.addSheet('guide', paintMiniSheet(GUIDE_LOOK));
 
-    try { await document.fonts.load('16px Mitr'); } catch { /* fallback font is fine */ }
+    try { await Promise.all([document.fonts.load('16px Mitr'), document.fonts.load('700 16px "Pixelify Sans"')]); } catch { /* fallback font is fine */ }
 
     // ?trail=<id> picks a trail directly while camp and the trail picker are being ported
     const q = new URLSearchParams(location.search).get('trail');

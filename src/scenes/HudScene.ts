@@ -9,8 +9,9 @@ import { ITEMS } from '../data/items';
 import { t } from '../i18n';
 import type { HikeScene } from './HikeScene';
 import { nameTag } from './nameTag';
+import { levelInfo } from '../core/camp';
+import { bar, C, FONT, greenButton, keyCap, paper, PIXEL_FONT, posts, scrim, slot, tag, TX, wood } from '../ui/theme';
 
-const FONT = 'Mitr, "Noto Sans Thai", Tahoma, sans-serif';
 const TS = CONFIG.TILE;
 const EV_ICON: Record<string, string> = { slippery: '⚠️', coldWind: '🌬️', fogRoll: '🌫️', wildlife: '🦌' };
 
@@ -46,25 +47,23 @@ export class HudScene extends Phaser.Scene {
     });
   }
 
-  private text(s: string, x: number, y: number, size = 14, color = '#f4ecd8', align: 'left' | 'center' | 'right' = 'left', bold = false, depth = 2): void {
+  private text(s: string, x: number, y: number, size = 14, color = TX.cream, align: 'left' | 'center' | 'right' = 'left', bold = false, depth = 2, font = FONT): Phaser.GameObjects.Text {
     let tx = this.texts[this.used];
     if (!tx) { tx = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '14px' }); this.texts.push(tx); }
     this.used++;
-    tx.setVisible(true).setAlpha(1).setText(s).setFontSize(size).setColor(color).setFontStyle(bold ? 'bold' : 'normal').setDepth(depth);
-    tx.setOrigin(align === 'left' ? 0 : align === 'center' ? 0.5 : 1, 0.5).setPosition(Math.round(x), Math.round(y));
+    tx.setVisible(true).setAlpha(1).setCrop().setText(s).setFontFamily(font === PIXEL_FONT && size < 16 ? FONT : font).setFontSize(size).setColor(color).setFontStyle(bold ? 'bold' : 'normal').setDepth(depth)
+      .setShadow(0, 0, '', 0).setWordWrapWidth(0).setLineSpacing(0);
+    return tx.setOrigin(align === 'left' ? 0 : align === 'center' ? 0.5 : 1, 0.5).setPosition(Math.round(x), Math.round(y));
+  }
+  /** Cream text with the 2 px dark drop used on wood signs. */
+  private signText(s: string, x: number, y: number, size: number, color: string = TX.cream, align: 'left' | 'center' | 'right' = 'left', bold = true, font = FONT): Phaser.GameObjects.Text {
+    return this.text(s, x, y, size, color, align, bold, 2, font).setShadow(0, 2, TX.woodShadow, 0, false, true);
   }
 
-  private panel(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, a = 0.78): void {
-    g.fillStyle(0x121c16, a).fillRoundedRect(x, y, w, h, 10);
-    g.lineStyle(1.5, 0xe8d9a8, 0.35 * Math.min(1, a / 0.78)).strokeRoundedRect(x, y, w, h, 10);
-  }
-
-  private bar(x: number, y: number, w: number, v: number, color: number, label: string): void {
-    this.text(label, x, y + 6, 13, '#e8dcc0');
-    const bx = x + 52;
-    this.g.fillStyle(0x000000, 0.45).fillRoundedRect(bx, y, w, 12, 6);
-    if (v > 0) this.g.fillStyle(color, 1).fillRoundedRect(bx, y, Math.max(6, (w * v) / 100), 12, 6);
-    this.text(String(Math.ceil(v)), bx + w + 8, y + 6, 12, '#e8dcc0');
+  private bar(x: number, y: number, w: number, v: number, color: number, label: string, warn: boolean): void {
+    this.text(label, x, y + 6, 13, TX.ink);
+    bar(this.g, x + 40, y, w, 12, v / 100, color);
+    this.text(String(Math.ceil(v)), x + 40 + w + 30, y + 6, 13, warn ? TX.red : TX.ink, 'right', true, 2, PIXEL_FONT);
   }
 
   update(_t: number, deltaMs: number): void {
@@ -100,101 +99,136 @@ export class HudScene extends Phaser.Scene {
 
     // ---- name and title above the hiker ----
     if (!hike.finished) {
-      const tag = nameTag(hike.profile), tw = 16 + tag.length * 7.2, ty = sy - 22 * cam.zoom;
-      g.fillStyle(0x121c16, 0.6).fillRoundedRect(sx - tw / 2, ty - 10, tw, 20, 8);
-      this.text(tag, sx, ty, 12, '#ffe9a8', 'center');
+      const ty = sy - 22 * cam.zoom, nt = this.text(nameTag(hike.profile), sx, ty, 12, TX.gold, 'center');
+      tag(g, sx - nt.width / 2 - 8, ty - 10, nt.width + 16, 20, 0.8);
       // friends in a co-op room
       for (const o of hike.coopTags()) {
         const ox = (o.x - cam.worldView.x) * cam.zoom, oy = (o.y - 10 - cam.worldView.y) * cam.zoom - 22 * cam.zoom;
         if (ox < -60 || oy < -20 || ox > IW + 60 || oy > IH + 20) continue;
-        const s = '🤝 ' + o.name, w = 20 + s.length * 7.2;
-        g.fillStyle(0x1a3a5a, 0.7).fillRoundedRect(ox - w / 2, oy - 10, w, 20, 8);
-        this.text(s, ox, oy, 12, '#cfe8ff', 'center');
+        const ft = this.text('🤝 ' + o.name, ox, oy, 12, TX.sky, 'center');
+        tag(g, ox - ft.width / 2 - 8, oy - 10, ft.width + 16, 20, 0.8);
       }
     }
 
-    // ---- stats + carried items ----
-    this.panel(g, 14, 14, 250, 150);
+    // ---- status sign: name, level, four stats on paper, pack ----
+    const p = hike.profile, L = levelInfo(p.exp ?? 0), SW = narrow ? Math.min(290, IW - hike.world.w * 1.6 - 24 - 10 - 14 - 8) : 300, SX = 14, SY = 14, SH = 176;
+    wood(g, SX, SY, SW, SH);
+    this.signText((p.name ?? '').trim() || t('on_hiker'), SX + 14, SY + 22, 15);
+    this.text(`Lv.${L.level}`, SX + SW - 14, SY + 22, 15, TX.gold, 'right', true, 2, PIXEL_FONT);
+    paper(g, SX + 8, SY + 40, SW - 16, 104);
     const low = (v: number) => v < 25 && Math.sin(this.time.now / 125) > 0;
-    this.bar(28, 28, 150, h.stamina, h.exhausted ? 0xc0504d : 0x9bd35a, t('stamina'));
-    this.bar(28, 50, 150, h.hunger, low(h.hunger) ? 0xffd27a : 0xe8a33d, t('hunger'));
-    this.bar(28, 72, 150, h.thirst, low(h.thirst) ? 0xa8dcff : 0x4aa3e0, t('thirst'));
-    this.bar(28, 94, 150, h.warmth, h.warmth < 30 ? 0x7fb2e5 : 0xf08a5d, t('warmth'));
+    const bw = SW - 16 - 24 - 40 - 34;
+    this.bar(SX + 20, SY + 52, bw, h.stamina, h.exhausted ? C.red : C.stamina, t('stamina'), h.stamina < 25);
+    this.bar(SX + 20, SY + 74, bw, h.hunger, low(h.hunger) ? 0xffd27a : C.hunger, t('hunger'), h.hunger < 25);
+    this.bar(SX + 20, SY + 96, bw, h.thirst, low(h.thirst) ? 0xa8dcff : C.thirst, t('thirst'), h.thirst < 25);
+    this.bar(SX + 20, SY + 118, bw, h.warmth, h.warmth < 30 ? C.cold : C.warmth, t('warmth'), h.warmth < 30);
     const kg = weight(hike.bp), over = kg > CONFIG.MAX_WEIGHT_KG;
-    this.text(`🎒 ${kg.toFixed(1)}/${CONFIG.MAX_WEIGHT_KG} kg · ${hike.bp.slots.length}/${CONFIG.MAX_SLOTS} ${t('slots')}`, 28, 122, 12.5, over ? '#ff9a8a' : '#f4ecd8');
-    this.text(t('walked', { d: walkedKm(h, hike.world).toFixed(1) }) + `   📷 ${hike.photos.length}`, 28, 144, 12.5, '#cfc3a6');
+    this.text(`🎒 ${kg.toFixed(1)}/${CONFIG.MAX_WEIGHT_KG} kg · ${hike.bp.slots.length}/${CONFIG.MAX_SLOTS} ${t('slots')}`, SX + 14, SY + 157, 12.5, over ? TX.redOnWood : TX.cream);
+    this.text(`📷 ${hike.photos.length}`, SX + SW - 14, SY + 157, 12.5, TX.creamDim, 'right');
 
     // ---- clock, weather, temperature, minimap ----
     const icon = { clear: '☀️', fog: '🌫️', drizzle: '🌦️' }[hike.weather];
-    const clock = narrow
-      ? `${clockLabel(hike.trail.startHour, hike.elapsed)} ${icon} ${Math.round(ambientC(hike.env()))}°C`
-      : `🕒 ${clockLabel(hike.trail.startHour, hike.elapsed)}  ${icon} ${t('w_' + hike.weather)}  🌡️ ${Math.round(ambientC(hike.env()))}°C`;
-    const mmS = narrow ? 1.6 : 3, mmW = hike.world.w * mmS, mmH = hike.world.h * mmS, mmX = IW - mmW - 18, mmY = 58;
-    this.panel(g, mmX - 8, 14, mmW + 16, mmH + 58);
-    this.text(clock, mmX + mmW / 2, 36, narrow ? 12 : 13.5, '#f4ecd8', 'center', true);
+    const mmS = narrow ? 1.6 : 3, mmW = hike.world.w * mmS, mmH = hike.world.h * mmS, mmX = IW - mmW - 24, mmY = 66;
+    wood(g, mmX - 10, 14, mmW + 20, 38);
+    const temp = `${Math.round(ambientC(hike.env()))}°C`, clock = clockLabel(hike.trail.startHour, hike.elapsed);
+    if (narrow) this.signText(`${clock} ${icon} ${temp}`, mmX + mmW / 2, 33, 12, TX.cream, 'center');
+    else {
+      this.text(`${icon} ${t('w_' + hike.weather)}`, mmX + 2, 33, 12.5, TX.cream);
+      this.signText(clock, mmX + mmW / 2 + 10, 32, 18, TX.gold, 'center', true, PIXEL_FONT);
+      this.text(temp, mmX + mmW - 2, 33, 12.5, TX.cream, 'right');
+    }
+    wood(g, mmX - 10, 56, mmW + 20, mmH + 20 + (hike.activeEvents.length ? 24 : 0));
+    g.fillStyle(C.woodDeep, 1).fillRect(mmX - 3, mmY - 3, mmW + 6, mmH + 6);
     g.fillStyle(0x0e1612, 1).fillRect(mmX, mmY, mmW, mmH);
     this.mini.setTexture('minimap').setPosition(mmX, mmY).setDisplaySize(mmW, mmH).setVisible(true);
-    const dot = (tx: number, ty: number, color: number, r: number) => this.top.fillStyle(color, 1).fillCircle(mmX + tx * mmS + mmS / 2, mmY + ty * mmS + mmS / 2, r);
+    const dot = (tx: number, ty: number, color: number, r: number) => {
+      const cx = Math.round(mmX + tx * mmS + mmS / 2), cy = Math.round(mmY + ty * mmS + mmS / 2);
+      this.top.fillStyle(C.woodDeep, 1).fillRect(cx - r - 1, cy - r - 1, 2 * r + 2, 2 * r + 2);
+      this.top.fillStyle(color, 1).fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    };
     for (const poi of hike.trail.pois) {
       const known = poi.type === 'viewpoint' || poi.type === 'goal' || hike.revealed[poi.y * hike.world.w + poi.x];
-      if (known && poi.type !== 'secret') dot(poi.x, poi.y, poi.type === 'viewpoint' ? 0x4fc3f7 : poi.type === 'goal' ? 0xe74c3c : 0xf4ecd8, 2.5);
+      if (known && poi.type !== 'secret') dot(poi.x, poi.y, poi.type === 'viewpoint' ? 0x4fc3f7 : poi.type === 'goal' ? C.gold : C.paper, 2);
     }
-    dot(h.x / TS - 0.5, h.y / TS - 0.5, 0xffffff, 3.5);
-    hike.activeEvents.forEach((a, i) => this.text(EV_ICON[a.id] ?? '•', mmX + mmW - 10 - i * 22, mmY + mmH + 14, 14, '#fff', 'center'));
+    dot(h.x / TS - 0.5, h.y / TS - 0.5, 0xffffff, 3);
+    hike.activeEvents.forEach((a, i) => this.text(EV_ICON[a.id] ?? '•', mmX + mmW - 10 - i * 22, mmY + mmH + 20, 14, '#fff', 'center'));
 
-    // ---- objective ----
+    // ---- trail sign + objective on paper hanging under it ----
     const tr = hike.trail, toCp = !!tr.checkpointId && !hike.checkpoint;
-    const target = tr.pois.find((p) => p.id === (toCp ? tr.checkpointId : tr.goalId))!;
+    const target = tr.pois.find((q) => q.id === (toCp ? tr.checkpointId : tr.goalId))!;
     const dx = target.x * TS + 8 - h.x, dy = target.y * TS + 8 - h.y;
     const meters = Math.round((Math.hypot(dx, dy) * tr.realData.distanceKm * 1000) / hike.world.pathLenPx);
-    const label = t((toCp ? tr.objKeys.checkpoint : tr.objKeys.goal) ?? '') + ` · ${meters} m`;
-    const ow = Math.min(narrow ? IW - 28 : 380, 380), ox = narrow ? 14 : IW / 2 - ow / 2, oy = narrow ? 174 : 14;
-    this.panel(g, ox, oy, ow, 40);
-    const ang = Math.atan2(dy, dx), ax = ox + 24, ay = oy + 20;
+    const label = t((toCp ? tr.objKeys.checkpoint : tr.objKeys.goal) ?? '');
+    let oy: number, ow: number, ox: number;
+    const freeW = mmX - 10 - (SX + SW) - 32;
+    if (!narrow && freeW >= 300) {
+      const tw = Math.min(460, freeW), tx0 = Math.round((SX + SW + mmX - 10) / 2 - tw / 2);
+      wood(g, tx0, 14, tw, 56);
+      this.text(t(tr.parkKey), tx0 + 16, 32, 11, TX.creamDim).setCrop(0, 0, tw - 120, 30);
+      this.signText(t(tr.trailKey), tx0 + 16, 52, 14.5).setCrop(0, 0, tw - 120, 30);
+      this.signText(walkedKm(h, hike.world).toFixed(1), tx0 + tw - 42, 41, 22, TX.gold, 'right', true, PIXEL_FONT);
+      this.text('km', tx0 + tw - 14, 43, 12, TX.cream, 'right');
+      ow = Math.min(tw - 40, 380); ox = Math.round(tx0 + tw / 2 - ow / 2); oy = 82;
+      posts(g, ox + 30, ox + ow - 30, 68, 16);
+    } else {
+      ow = Math.min(IW - 28, 380); ox = narrow ? 14 : Math.round(IW / 2 - ow / 2); oy = narrow ? SY + SH + 8 : 14;
+    }
+    paper(g, ox, oy, ow, 40);
+    const ang = Math.atan2(dy, dx), ax = ox + 24, ay = oy + 19;
     const pt = (r: number, a: number) => [ax + Math.cos(ang + a) * r, ay + Math.sin(ang + a) * r];
     const [x1, y1] = pt(11, 0), [x2, y2] = pt(9, 2.4), [x3, y3] = pt(9, -2.4);
-    g.fillStyle(toCp ? 0x4fc3f7 : 0xe74c3c, 1).fillTriangle(x1, y1, x2, y2, x3, y3);
-    this.text(label, ox + 44, oy + 20, 15, '#f4ecd8', 'left', true);
+    g.fillStyle(toCp ? 0x2f8fc4 : C.red, 1).fillTriangle(x1, y1, x2, y2, x3, y3);
+    g.lineStyle(1.5, C.paperEdge, 1).strokeTriangle(x1, y1, x2, y2, x3, y3);
+    this.text(label, ox + 44, oy + 19, 14, TX.ink, 'left', true).setCrop(0, 0, ow - 116, 30);
+    this.text(`${meters} m`, ox + ow - 14, oy + 19, 14, TX.inkFaint, 'right', true, 2, PIXEL_FONT);
 
-    // ---- toasts ----
+    // ---- toasts: paper notes ----
     hike.toasts.forEach((tt, i) => {
-      const y = (narrow ? 224 : 64) + i * 40, w = Math.min(IW - 28, 460);
-      this.panel(g, IW / 2 - w / 2, y, w, 32, 0.85 * Math.min(1, tt.t));
-      this.text(tt.text, IW / 2, y + 16, 14, '#fff6dc', 'center');
+      const y = oy + 50 + i * 42, w = Math.min(IW - 28, 460), a = Math.min(1, tt.t);
+      paper(g, IW / 2 - w / 2, y, w, 36, a);
+      this.text(tt.text, IW / 2, y + 17, 14, TX.ink, 'center', true).setAlpha(a);
     });
 
     // ---- hotbar: 12 backpack slots, keys 1–9 0 - = ----
-    const n = CONFIG.MAX_SLOTS, sz = Math.min(46, (IW - 40) / n - 4), hbW = n * (sz + 4) + 8, hbX = IW / 2 - hbW / 2, hbY = IH - sz - 44;
-    this.hotbar = { x0: hbX + 6, y: hbY, sz, step: sz + 4 };
-    this.panel(g, hbX, hbY - 4, hbW, sz + 8, 0.8);
+    const n = CONFIG.MAX_SLOTS, sz = Math.floor(Math.min(50, (IW - 48) / n - 6)), hbW = n * (sz + 6) + 14, hbX = Math.round(IW / 2 - hbW / 2), hbY = IH - sz - (touch.enabled ? 56 : 40);
+    this.hotbar = { x0: hbX + 10, y: hbY, sz, step: sz + 6 };
+    wood(g, hbX, hbY - 10, hbW, sz + 20);
     const keyLabel = (i: number) => (i < 9 ? String(i + 1) : ['0', '-', '='][i - 9]);
     for (let i = 0; i < n; i++) {
-      const x = hbX + 6 + i * (sz + 4), s = hike.bp.slots[i];
-      g.fillStyle(0xffffff, 0.08).fillRoundedRect(x, hbY, sz, sz, 6);
+      const x = hbX + 10 + i * (sz + 6), s = hike.bp.slots[i];
+      slot(g, x, hbY, sz, false, !s);
       if (s) {
-        if (Object.values(hike.bp.wearing).includes(s.itemId)) g.lineStyle(2, 0x9bd35a, 1).strokeRoundedRect(x, hbY, sz, sz, 6);
-        this.text(ITEMS[s.itemId].icon, x + sz / 2, hbY + sz / 2 + 1, sz * 0.5, '#ffffff', 'center');
-        this.texts[this.used - 1].setAlpha(s.itemId === 'water_bottle' && !s.full ? 0.35 : 1);
+        if (Object.values(hike.bp.wearing).includes(s.itemId)) { g.fillStyle(C.woodDeep, 1).fillRect(x + sz - 13, hbY + sz - 13, 10, 10); g.fillStyle(C.stamina, 1).fillRect(x + sz - 11, hbY + sz - 11, 6, 6); }
+        this.text(ITEMS[s.itemId].icon, x + sz / 2, hbY + sz / 2 + 1, sz * 0.48, '#ffffff', 'center').setAlpha(s.itemId === 'water_bottle' && !s.full ? 0.35 : 1);
         const count = s.qty > 1 ? s.qty : s.charges ? s.charges : '';
-        if (count) this.text(String(count), x + sz - 4, hbY + sz - 8, 11, '#ffffff', 'right', true);
+        if (count) this.text(String(count), x + sz - 5, hbY + sz - 9, 12, TX.cream, 'right', true, 2, PIXEL_FONT).setShadow(0, 1, TX.woodShadow, 0, false, true);
       }
-      this.text(keyLabel(i), x + 4, hbY + 8, 10, 'rgba(244,236,216,0.6)');
+      this.text(keyLabel(i), x + 6, hbY + 10, 11, s ? TX.creamDim : '#a07a50', 'left', false, 2, PIXEL_FONT);
     }
 
     // ---- dialog or interaction prompt ----
     if (hike.dialog) {
-      const dw = Math.min(640, IW - 40), dxp = IW / 2 - dw / 2, dyp = hbY - 116;
-      this.panel(g, dxp, dyp, dw, 104, 0.9);
-      this.text(t('guide_name'), dxp + 20, dyp + 22, 14, '#9bd35a', 'left', true);
-      this.text(hike.dialog.lines[hike.dialog.i] ?? '', dxp + 20, dyp + 54, 15, '#f4ecd8');
-      this.texts[this.used - 1].setWordWrapWidth(dw - 40, true).setOrigin(0, 0.5);
-      this.text(`${t('dialog_next')} (${hike.dialog.i + 1}/${hike.dialog.lines.length})`, dxp + dw - 20, dyp + 88, 12, '#cfc3a6', 'right');
+      const dw = Math.min(640, IW - 40), dxp = IW / 2 - dw / 2, dyp = hbY - 128;
+      paper(g, dxp, dyp, dw, 110);
+      this.text(t('guide_name'), dxp + 20, dyp + 22, 14, TX.green, 'left', true);
+      this.text(hike.dialog.lines[hike.dialog.i] ?? '', dxp + 20, dyp + 54, 15, TX.ink).setWordWrapWidth(dw - 40, true).setOrigin(0, 0.5);
+      this.text(`${t('dialog_next')} (${hike.dialog.i + 1}/${hike.dialog.lines.length})`, dxp + dw - 20, dyp + 90, 12, TX.inkFaint, 'right');
     } else if (!hike.finished) {
       const tg = hike.findTarget();
-      const py = touch.enabled ? IH - 290 : hbY - 52, key = touch.enabled ? '👆' : '[E]';
-      if (tg) { const w = 40 + tg.label.length * 9; this.panel(g, IW / 2 - w / 2, py, w, 38, 0.88); this.text(`${key} ${tg.label}`, IW / 2, py + 19, 16, '#ffe9a8', 'center', true); }
+      const py = touch.enabled ? IH - 290 : hbY - 56;
+      if (tg) {
+        const lt = this.text(tg.label, 0, py + 18, 15, TX.cream, 'left', true);
+        const keyW = touch.enabled ? 0 : 34, tw = lt.width + 28, total = keyW + (keyW ? 8 : 0) + tw, x0 = Math.round(IW / 2 - total / 2);
+        if (keyW) { keyCap(g, x0, py + 2, keyW, 32); this.text('E', x0 + keyW / 2, py + 18, 17, TX.woodShadow, 'center', true, 2, PIXEL_FONT); }
+        tag(g, x0 + total - tw, py + 2, tw, 32, 0.88);
+        lt.setPosition(Math.round(x0 + total - tw + 14), py + 18);
+      }
     }
-    if (!touch.enabled) this.text(t('controls'), 16, IH - 18, 12, 'rgba(244,236,216,0.75)');
+    if (!touch.enabled) {
+      const ct = this.text(t('controls'), 24, IH - 16, 12, TX.creamDim);
+      if (ct.width + 20 < hbX - 10) tag(g, 14, IH - 28, ct.width + 20, 24, 0.75);
+      else { ct.setPosition(IW / 2, IH - 14).setOrigin(0.5, 0.5).setFontSize(11); tag(g, IW / 2 - ct.width / 2 - 8, IH - 25, ct.width + 16, 22, 0.75); }
+    }
     if (h.zeroTimer > 0) g.fillStyle(0xa01414, 0.15 + 0.1 * Math.sin(this.time.now / 160)).fillRect(0, 0, IW, IH);
     if (hike.flash > 0) this.top.fillStyle(0xffffff, hike.flash).fillRect(0, 0, IW, IH);
 
@@ -205,11 +239,12 @@ export class HudScene extends Phaser.Scene {
 
   private drawSummary(IW: number, IH: number, hike: HikeScene): void {
     const s = hike.summary!, g = this.top;
-    g.fillStyle(0x0a140e, 0.6).fillRect(0, 0, IW, IH);
-    const pw = Math.min(600, IW - 32), ph = 420, px = IW / 2 - pw / 2, py = Math.max(8, IH / 2 - ph / 2);
-    this.panel(g, px, py, pw, ph, 0.94);
-    this.text('🏅 ' + t('sum_title'), IW / 2, py + 38, 26, '#ffe9a8', 'center', true, 4);
-    const narrow = pw < 520, scx = narrow ? IW / 2 : px + 130, scy = narrow ? py + 120 : py + 200, sr = narrow ? 52 : 86;
+    scrim(g, IW, IH, 0.6);
+    const pw = Math.min(600, IW - 32), ph = 430, px = IW / 2 - pw / 2, py = Math.max(8, IH / 2 - ph / 2);
+    wood(g, px, py, pw, 60);
+    paper(g, px, py + 52, pw, ph - 52);
+    this.signText('🏅 ' + t('sum_title'), IW / 2, py + 30, 24, TX.cream, 'center').setDepth(4);
+    const narrow = pw < 520, scx = narrow ? IW / 2 : px + 130, scy = narrow ? py + 126 : py + 216, sr = narrow ? 52 : 86;
     g.lineStyle(4, 0xc0392b, 1).strokeCircle(scx, scy, sr); g.lineStyle(2, 0xc0392b, 1).strokeCircle(scx, scy, sr - 12);
     g.fillStyle(0xc0392b, 1).fillTriangle(scx - sr * 0.45, scy + sr * 0.15, scx - sr * 0.1, scy - sr * 0.28, scx + sr * 0.2, scy + sr * 0.15);
     g.fillTriangle(scx - sr * 0.05, scy + sr * 0.15, scx + sr * 0.22, scy - sr * 0.18, scx + sr * 0.48, scy + sr * 0.15);
@@ -220,19 +255,25 @@ export class HudScene extends Phaser.Scene {
       [t('sum_time'), s.time], [t('sum_dist'), s.km + ' km'], [t('sum_photos'), String(s.photos)], [t('sum_litter'), String(s.litter)],
       [t('sum_secret'), s.secret ? t('found') : t('notFound')], [t('sum_exp'), '+' + s.exp], [t('sum_coins'), '+' + s.coins + ' 🪙'],
     ];
-    const rx = narrow ? px + 24 : px + 260, ry0 = narrow ? py + 190 : py + 96;
-    rows.forEach(([k, v], i) => { this.text(k, rx, ry0 + i * 30, 15, '#e8dcc0', 'left', false, 4); this.text(v, px + pw - 28, ry0 + i * 30, 15, i >= 5 ? '#9bd35a' : '#f4ecd8', 'right', true, 4); });
-    this.text(t('port_restart'), IW / 2, py + ph - 22, 13.5, '#ffe9a8', 'center', false, 4);
+    const rx = narrow ? px + 24 : px + 260, ry0 = narrow ? py + 196 : py + 100;
+    rows.forEach(([k, v], i) => {
+      this.text(k, rx, ry0 + i * 30, 15, TX.inkSoft, 'left', false, 4);
+      this.text(v, px + pw - 28, ry0 + i * 30, 15, i >= 5 ? TX.green : TX.ink, 'right', true, 4);
+      if (i < rows.length - 1) g.fillStyle(C.paperLine, 1).fillRect(Math.round(rx), Math.round(ry0 + i * 30 + 15), Math.round(px + pw - 28 - rx), 1);
+    });
+    const bw = Math.min(260, pw - 48), by = py + ph - 58;
+    greenButton(g, IW / 2 - bw / 2, by, bw, 44);
+    this.signText(t('port_restart'), IW / 2, by + 20, 15, '#ffffff', 'center').setDepth(4).setShadow(0, 2, '#24461a', 0, false, true);
   }
 
   private drawRescue(IW: number, IH: number, reason: 'starve' | 'cold'): void {
     const g = this.top;
-    g.fillStyle(0x0a140e, 0.7).fillRect(0, 0, IW, IH);
-    const pw = Math.min(560, IW - 32), ph = 210, px = IW / 2 - pw / 2, py = IH / 2 - ph / 2;
-    this.panel(g, px, py, pw, ph, 0.94);
-    this.text('🚑 ' + t('rescue_title'), IW / 2, py + 40, 20, '#ffb38a', 'center', true, 4);
-    this.text(t(reason === 'cold' ? 'rescue_cold' : 'rescue_body'), px + 28, py + 100, 15, '#f4ecd8', 'left', false, 4);
-    this.texts[this.used - 1].setWordWrapWidth(pw - 56, true);
-    this.text(t('port_restart'), IW / 2, py + ph - 24, 13.5, '#ffe9a8', 'center', false, 4);
+    scrim(g, IW, IH, 0.7);
+    const pw = Math.min(560, IW - 32), ph = 230, px = IW / 2 - pw / 2, py = IH / 2 - ph / 2;
+    wood(g, px, py, pw, 56);
+    paper(g, px, py + 48, pw, ph - 48);
+    this.signText('🚑 ' + t('rescue_title'), IW / 2, py + 28, 19, TX.cream, 'center').setDepth(4);
+    this.text(t(reason === 'cold' ? 'rescue_cold' : 'rescue_body'), px + 28, py + 112, 15, TX.ink, 'left', false, 4).setWordWrapWidth(pw - 56, true);
+    this.text(t('port_restart'), IW / 2, py + ph - 26, 13.5, TX.green, 'center', true, 4);
   }
 }

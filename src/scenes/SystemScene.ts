@@ -10,8 +10,8 @@ import { t } from '../i18n';
 import { hitButton, layoutButtons, STICK_RADIUS, stickDirs, touch, vkeys, type TouchButton } from '../input/touch';
 import type { HikeScene } from './HikeScene';
 import type { CampScene } from './CampScene';
+import { C, FONT, TX, woodButton } from '../ui/theme';
 
-const FONT = 'Mitr, "Noto Sans Thai", Tahoma, sans-serif';
 type Prefs = Profile & { sound?: boolean; music?: boolean };
 
 /**
@@ -174,17 +174,19 @@ export class SystemScene extends Phaser.Scene {
   private drawTouch(B: TouchButton[], walk: boolean, _IW: number, IH: number): void {
     const g = this.g, active = new Set(this.pressed.values());
     for (const b of B) {
-      g.fillStyle(active.has(b.id) ? 0xffe9a8 : 0x121c16, active.has(b.id) ? 0.45 : 0.55).fillCircle(b.x, b.y, b.r);
-      g.lineStyle(1.5, 0xe8d9a8, 0.5).strokeCircle(b.x, b.y, b.r);
-      this.text(b.label, b.x, b.y + 1, Math.round(b.r * 0.75), '#fff6dc');
+      // wooden square buttons (hit test stays the circle of radius r)
+      const on = active.has(b.id), s = Math.round(b.r * 1.8);
+      woodButton(g, b.x - s / 2, b.y - s / 2, s, s, false, on);
+      this.text(b.label, b.x, b.y + 1, Math.round(b.r * 0.72), on ? TX.woodShadow : TX.cream);
     }
     if (this.stick) {
       const s = this.stick, dx = s.x - s.x0, dy = s.y - s.y0, len = Math.hypot(dx, dy), k = len > STICK_RADIUS ? STICK_RADIUS / len : 1;
-      g.fillStyle(0x121c16, 0.35).fillCircle(s.x0, s.y0, STICK_RADIUS);
-      g.lineStyle(1.5, 0xe8d9a8, 0.4).strokeCircle(s.x0, s.y0, STICK_RADIUS);
-      g.fillStyle(this.stickRun ? 0xffb478 : 0xffe9a8, this.stickRun ? 0.8 : 0.7).fillCircle(s.x0 + dx * k, s.y0 + dy * k, 24);
+      g.fillStyle(C.woodDeep, 0.35).fillCircle(s.x0, s.y0, STICK_RADIUS);
+      g.lineStyle(3, C.woodDark, 0.6).strokeCircle(s.x0, s.y0, STICK_RADIUS);
+      g.fillStyle(C.woodDark, 0.9).fillCircle(s.x0 + dx * k, s.y0 + dy * k, 26);
+      g.fillStyle(this.stickRun ? C.hunger : C.gold, 0.95).fillCircle(s.x0 + dx * k, s.y0 + dy * k, 22);
     } else if (walk) {
-      g.fillStyle(0x121c16, 0.18).fillCircle(96, IH - 150, 50);
+      g.fillStyle(C.woodDeep, 0.2).fillCircle(96, IH - 150, 50);
       this.text('✥', 96, IH - 150, 26, 'rgba(255,246,220,0.35)');
     }
   }

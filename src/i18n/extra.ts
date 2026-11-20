@@ -25,6 +25,10 @@ export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
     coop_needSignIn: 'ต้องเข้าสู่ระบบก่อน (แท็บบัญชี) จึงจะเข้าห้องได้', coop_joining: 'กำลังเข้าห้อง {r}…', coop_room_badge: '🤝 ห้อง {r}: เพื่อนต้องเลือกเส้นทางนี้ด้วย',
     coop_err_full: '⚠️ ห้องเต็มแล้ว (4 คน)', coop_err_auth: '⚠️ ต้องเข้าสู่ระบบก่อนเดินด้วยกัน (กด O)', coop_err_no_server: '⚠️ ยังไม่ได้ตั้งค่าเกมเซิร์ฟเวอร์', coop_err_connect: '⚠️ ต่อเกมเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
     coop_joined: '🤝 {n} มาเดินด้วยแล้ว', coop_left: '👋 {n} ออกจากห้อง', coop_inRoom: '🤝 ห้อง {r} · ในห้อง {n} คน',
+    // wood & paper UI (v2 design)
+    ui_level: 'เลเวล', ui_seed: 'เมล็ด', ui_build: 'ตกแต่ง', ui_skills: 'ทักษะ', ui_journal: 'สมุด', ui_online: 'ออนไลน์', ui_store: 'คลังแคมป์',
+    ui_season_left: 'อีก {n} วันเปลี่ยนฤดู', ui_quest_new: 'ภารกิจใหม่เมื่อนอนในเต็นท์', ui_forecast: 'พยากรณ์อากาศ', ui_trail: 'เส้นทาง',
+    ui_item: 'ของ', ui_qty: 'จำนวน', ui_kg: 'น้ำหนัก', ui_slots: 'ช่องในเป้', ui_over_tip: 'เกิน {n} กก. จะเดินช้าลงและเหนื่อยเร็วขึ้น', ui_tagline: 'เดินป่า ตั้งแคมป์ ในอุทยานแห่งชาติไทย',
     on_rank: 'อันดับ', on_name: 'ชื่อ', on_time: 'เวลา', on_close: 'ปิด', on_loading: 'กำลังโหลด…', on_hiker: 'นักเดินทาง',
   },
   en: {
@@ -48,6 +52,9 @@ export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
     coop_needSignIn: 'Sign in first (Account tab) to join a room', coop_joining: 'Joining room {r}…', coop_room_badge: '🤝 Room {r}: friends must pick this trail too',
     coop_err_full: '⚠️ That room is full (4 hikers)', coop_err_auth: '⚠️ Sign in to hike together (press O)', coop_err_no_server: '⚠️ No game server configured', coop_err_connect: '⚠️ Could not reach the game server. Try again.',
     coop_joined: '🤝 {n} joined the hike', coop_left: '👋 {n} left', coop_inRoom: '🤝 Room {r} · {n} hiking',
+    ui_level: 'LEVEL', ui_seed: 'Seed', ui_build: 'Decorate', ui_skills: 'Skills', ui_journal: 'Journal', ui_online: 'Online', ui_store: 'Camp storage',
+    ui_season_left: '{n} days until the season changes', ui_quest_new: 'New quests when you sleep in the tent', ui_forecast: 'Forecast', ui_trail: 'Trail',
+    ui_item: 'Item', ui_qty: 'Amount', ui_kg: 'Weight', ui_slots: 'Backpack slots', ui_over_tip: 'Over {n} kg you walk slower and tire faster', ui_tagline: "Hike and camp in Thailand's national parks",
     on_rank: 'Rank', on_name: 'Name', on_time: 'Time', on_close: 'Close', on_loading: 'Loading…', on_hiker: 'Hiker',
   },
 };

@@ -51,7 +51,7 @@ Trail ids: `doi-inthanon-kew-mae-pan`, `phu-kradueng-summit`, `erawan-waterfall`
 | `src/scenes/` | Phaser scenes: `BootScene` builds textures, `HikeScene` is the zoomed world, `HudScene` the full-res overlay. |
 | `src/i18n/` | Thai/English strings, extracted from the prototype by `npm run extract-strings`. |
 | `src/audio/`, `src/input/` | Web Audio sound + generative music; touch joystick and buttons (`?touch=1` forces touch mode). |
-| `src/net/`, `src/ui/` | Supabase client (accounts, cloud save, leaderboard) and the Online panel. Optional: no settings = offline game. |
+| `src/net/`, `src/ui/` | Supabase client (accounts, cloud save, leaderboard) and the Online panel. Optional: no settings = offline game. `src/ui/theme.ts` is the wood & paper pixel UI kit every HUD and menu draws with. |
 | `server/` | Co-op game server (Node + `ws`). Imports `src/core` directly: one movement code for client and server. |
 | `docs/` | Design documents (vision, GDD, parks data, progress log), Claude Project instructions, and the prototype `docs/knowledge/game.html`. |
 | `supabase/migrations/` | Database schema with Row Level Security. Already applied to the project in `.env`. |
@@ -74,6 +74,7 @@ Rules of the codebase (from the original brief, section 22):
 | M7 Polish | touch controls, sound effects, generative music, phone layout | ✅ |
 | M8a Online | Supabase accounts (email + password, guest), cloud save that never loses progress, per-trail leaderboard written only through a validating database function | ✅ |
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
+| UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar, phone layout fixes | ✅ |
 | M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · server: connect once in Render |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.

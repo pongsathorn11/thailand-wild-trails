@@ -13,7 +13,10 @@ import { TRAILS } from '../data/trails';
 import { campGround, campLayout, paintPlots } from '../gfx/campArt';
 import { MINI, miniFrameIndex } from '../gfx/paint';
 import type { Dir } from '../core/hiker';
-import { t } from '../i18n';
+import { t, tList } from '../i18n';
+import { activeEvent, ensureStory, eventState, notifyStory, npcView, talkTo, type Detail } from '../core/story';
+import { NPCS, type NpcId } from '../data/story';
+import { storyMessages } from './storyText';
 import type { Toast } from './HikeScene';
 import { SKILLS, TITLES, checkProgress, skillRank, skillValue, upgradeSkill } from '../core/progress';
 import { progressMessages } from './progressText';
@@ -27,13 +30,15 @@ const TS = CONFIG.TILE;
 export type MenuType = 'shop' | 'cook' | 'quests' | 'trails' | 'skills' | 'journal';
 import { JOURNAL_TABS, journalRows, type JournalTab, type MenuRow } from './journalRows';
 export { JOURNAL_TABS, type JournalTab, type MenuRow };
-export interface CampTarget { kind: 'plot' | 'fixed'; label: string; plot?: Plot; fixedType?: string }
+export interface CampTarget { kind: 'plot' | 'fixed' | 'npc'; label: string; plot?: Plot; fixedType?: string; npc?: NpcId }
 
 /** The player's camp: garden, cooking, shop, decorating, daily quests and the way out to the trails. */
 export class CampScene extends Phaser.Scene {
   toasts: Toast[] = [];
   menu: { type: MenuType; sel: number; tab?: JournalTab } | null = null;
   private progressTimer = 0;
+  /** An NPC conversation in progress; `after` toasts show when it closes. */
+  dialog: { npc: NpcId; lines: string[]; i: number; after: string[]; fanfare: boolean } | null = null;
   build: { sel: number } | null = null;
   seedSel = 0;
   flash = 0;
@@ -53,7 +58,7 @@ export class CampScene extends Phaser.Scene {
 
   init(data: { messages?: string[] }): void {
     this.toasts = (data.messages ?? []).map((text) => ({ text, t: 4 }));
-    this.menu = null; this.build = null; this.flash = 0; this.canopies = []; this.furniture = [];
+    this.menu = null; this.build = null; this.dialog = null; this.flash = 0; this.canopies = []; this.furniture = [];
   }
 
   create(): void {
@@ -79,6 +84,9 @@ export class CampScene extends Phaser.Scene {
       else this.add.image(fx - ax, fy - ay, `prop-${f.type}`).setOrigin(0).setDepth(fy);
     }
     this.rebuildFurniture();
+    // camp residents with stories (src/data/story.ts)
+    for (const n of NPCS) this.add.sprite(n.x * TS + 8, n.y * TS + 10, 'npc-' + n.id, miniFrameIndex(n.face, 0)).setOrigin(MINI.FX / MINI.W, MINI.FY / MINI.H).setDepth(n.y * TS + 10);
+    ensureStory(p);
 
     const [sx, sy] = CAMP.start;
     this.pos = { x: sx * TS + 8, y: sy * TS + 10, dir: 'up', frame: 0, animT: 0, moving: false };
@@ -117,7 +125,7 @@ export class CampScene extends Phaser.Scene {
   }
   private isSolid(x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= CAMP.W || y >= CAMP.H) return true;
-    return this.layout.solid[y * CAMP.W + x] === 1 || !!placedAt(this.profile, x, y);
+    return this.layout.solid[y * CAMP.W + x] === 1 || !!placedAt(this.profile, x, y) || NPCS.some((n) => n.x === x && n.y === y);
   }
   private canStand(px: number, py: number): boolean {
     return [[px - 4, py - 3], [px + 4, py - 3], [px - 4, py + 1], [px + 4, py + 1]].every(([x, y]) => !this.isSolid(Math.floor(x / TS), Math.floor(y / TS)));
@@ -128,7 +136,10 @@ export class CampScene extends Phaser.Scene {
   }
   selectedCrop(): string | null { const s = seedsOwned(this.profile); if (!s.length) return null; this.seedSel %= s.length; return s[this.seedSel]; }
   buildItem(): string | null { const o = ownedFurniture(this.profile); if (!o.length || !this.build) return null; this.build.sel = ((this.build.sel % o.length) + o.length) % o.length; return o[this.build.sel]; }
-  private quest(kind: QuestKind): void {
+  private quest(kind: QuestKind, detail: Detail = {}): void {
+    const sm = storyMessages(notifyStory(this.profile, kind, detail));
+    sm.lines.forEach((l) => this.toast(l));
+    if (sm.lines.length) audio.sfx(sm.fanfare ? 'fanfare' : 'chime');
     for (const d of notifyQuest(this.profile, kind)) {
       this.toast(t('msg_questDone', { q: t('q_' + d.id) }) + ` +${d.exp} EXP +${d.coins}🪙`); audio.sfx('chime');
       if (d.levelUp) { this.toast(t('msg_levelUp', { n: d.levelUp })); audio.sfx('fanfare'); }
@@ -144,6 +155,9 @@ export class CampScene extends Phaser.Scene {
       const crop = CROPS[plot.cropId];
       return { kind: 'plot', plot, label: plot.grown >= crop.days ? t('act_harvest') : plot.watered ? t('act_growing') : t('act_water') };
     }
+    for (const n of NPCS) {
+      if (Math.hypot(this.pos.x - (n.x * TS + 8), this.pos.y - (n.y * TS + 10)) < 26) return { kind: 'npc', npc: n.id, label: t('act_talk_npc', { n: t('npc_' + n.id) }) };
+    }
     let best: (typeof CAMP.fixed)[number] | null = null, bd = Infinity;
     for (const f of CAMP.fixed) {
       const d = Math.hypot(this.pos.x - (f.x * TS + (f.type === 'tent' ? 16 : 8)), this.pos.y - (f.y * TS + 12));
@@ -157,13 +171,15 @@ export class CampScene extends Phaser.Scene {
   private run(tg: CampTarget | null): void {
     if (!tg) return;
     const p = this.profile;
+    if (tg.kind === 'npc') { this.talk(tg.npc!); return; }
     if (tg.kind === 'plot') {
       const r = plotAction(p, tg.plot!, tg.plot!.cropId ? null : this.selectedCrop(), skillRank(p, 'gardening'));
       const name = 'crop' in r ? t('item_' + r.crop) : '';
       const text = r.msg === 'msg_growing' ? t(r.msg, { n: r.days }) : r.msg === 'msg_harvest' ? t(r.msg, { s: name, n: r.n }) : t(r.msg, { s: name });
       this.toast(text); audio.sfx(r.msg === 'msg_harvest' ? 'pickup' : r.msg === 'msg_watered' ? 'water' : r.msg === 'msg_planted' ? 'select' : 'blip');
-      if (r.msg === 'msg_planted') this.quest('plant');
-      if (r.msg === 'msg_harvest') this.quest('harvest');
+      const crop = 'crop' in r ? String(r.crop) : undefined;
+      if (r.msg === 'msg_planted') this.quest('plant', { crop });
+      if (r.msg === 'msg_harvest') this.quest('harvest', { crop });
       this.redrawPlots(); this.save();
       return;
     }
@@ -181,6 +197,50 @@ export class CampScene extends Phaser.Scene {
       case 'mailbox': this.menu = { type: 'shop', sel: 0 }; break;
       case 'trailSign': this.openTrails(); break;
     }
+  }
+
+  // ---------- NPC stories ----------
+  private talk(id: NpcId): void {
+    const p = this.profile, r = talkTo(p, id), n = NPCS.find((x) => x.id === id)!, after: string[] = [];
+    if (r.kind === 'reward') {
+      after.push(t('msg_storyReward', { i: n.icon, n: t('npc_' + id), e: r.exp, c: r.coins }));
+      after.push(t('msg_storyHeart', { n: t('npc_' + id) }));
+      if (r.levelUp) after.push(t('msg_levelUp', { n: r.levelUp }));
+    }
+    const lines = [...tList(r.lines)];
+    if (r.kind === 'locked') lines.push(t('need_level', { n: r.level }));
+    this.dialog = { npc: id, lines: lines.length ? lines : ['…'], i: 0, after, fanfare: r.kind === 'reward' };
+    audio.sfx('blip');
+    this.save();
+  }
+  dialogNext(close = false): void {
+    const d = this.dialog;
+    if (!d) return;
+    d.i++;
+    if (close || d.i >= d.lines.length) {
+      this.dialog = null;
+      d.after.forEach((m) => this.toast(m));
+      if (d.after.length) audio.sfx(d.fanfare ? 'fanfare' : 'chime');
+    } else audio.sfx('blip');
+  }
+
+  /** Story chapters and the running event, for the quest board. */
+  storyRows(): MenuRow[] {
+    const p = this.profile, rows: MenuRow[] = [];
+    for (const n of NPCS) {
+      const v = npcView(p, n.id), hearts = '♥'.repeat(v.hearts) + '♡'.repeat(n.chapters.length - v.hearts);
+      if (v.status === 'done') { rows.push({ icon: n.icon, label: `${t('npc_' + n.id)}  ${hearts}`, sub: t('title_' + n.titleId), right: '✅', enabled: false }); continue; }
+      const ch = n.chapters[v.chapter], goal = t(`story_${ch.id}_goal`);
+      const sub = v.status === 'locked' ? t('need_level', { n: ch.minLevel! }) : v.status === 'new' ? t('act_talk_npc', { n: t('npc_' + n.id) }) : t('story_progress', { g: goal, n: v.progress, m: v.need });
+      rows.push({ icon: n.icon, label: `${t('npc_' + n.id)}  ${hearts}`, sub, right: v.status === 'ready' ? '💬' : `+${ch.exp} EXP`, enabled: v.status !== 'locked' });
+    }
+    const a = activeEvent(p.day || 1);
+    if (a) {
+      const e = eventState(p, a);
+      rows.push({ icon: a.def.icon, label: `${t('event_' + a.def.id)} · ${t('ui_days_left', { n: a.daysLeft })}`,
+        sub: e.done ? t('event_done') : a.def.goals.map((g, i) => `${t('qk_' + g.kind)} ${e.progress[i]}/${g.count}`).join(' · '), right: `+${a.def.exp} EXP`, enabled: !e.done });
+    }
+    return rows;
   }
 
   // ---------- menus ----------
@@ -216,10 +276,10 @@ export class CampScene extends Phaser.Scene {
       };
     });
     if (m.type === 'journal') return journalRows(this.profile, m.tab ?? 'album');
-    return this.quests.map((q) => {
+    return [...this.quests.map((q) => {
       const d = QUEST_POOL.find((x) => x.id === q.id)!;
       return { icon: q.done ? '✅' : '📌', label: t('q_' + d.id), sub: `${q.progress}/${d.count}`, right: `+${d.exp} EXP · 🪙 ${d.coins}`, enabled: !q.done };
-    });
+    }), ...this.storyRows()];
   }
 
   confirmMenu(): void {
@@ -294,9 +354,25 @@ export class CampScene extends Phaser.Scene {
   /** Trail picker (the trail sign, the T key or the Hike button). */
   openTrails(): void { this.build = null; this.menu = { type: 'trails', sel: Math.max(0, TRAILS.findIndex((x) => x.id === this.profile.lastTrail)) }; }
 
+  /** One notice when a seasonal event begins (remembered per event and year). */
+  private checkEventStart(): void {
+    const p = this.profile, a = activeEvent(p.day || 1), st = ensureStory(p) as ReturnType<typeof ensureStory> & { seenEvent?: string };
+    if (!a || st.seenEvent === a.key) return;
+    st.seenEvent = a.key;
+    this.toast(t('msg_eventStart', { i: a.def.icon, e: t('event_' + a.def.id), d: a.daysLeft }));
+    this.toast(t('event_' + a.def.id + '_desc'));
+    audio.sfx('fanfare');
+    this.save();
+  }
+
   // ---------- input ----------
   onKey(code: string): void {
     if (onlinePanelOpen()) return;
+    if (this.dialog) {
+      if (code === 'KeyE' || code === 'Space' || code === 'Enter') this.dialogNext();
+      else if (code === 'Escape') this.dialogNext(true);
+      return;
+    }
     if (code === 'KeyO' && !this.menu && !this.build) { audio.sfx('select'); openOnlinePanel(); return; }
     if (this.menu) {
       const n = this.menuRows().length, m = this.menu;
@@ -340,13 +416,14 @@ export class CampScene extends Phaser.Scene {
     this.progressTimer -= dt;
     if (this.progressTimer <= 0) {
       this.progressTimer = 0.5;
+      this.checkEventStart();
       const msgs = progressMessages(checkProgress(this.profile));
       if (msgs.length) { msgs.forEach((m) => this.toast(m)); audio.sfx('chime'); this.save(); }
     }
 
     const p = this.pos, k = this.keys;
     let dx = 0, dy = 0;
-    if (!this.menu) { if (k.A.isDown || k.LEFT.isDown || vkeys.left) dx--; if (k.D.isDown || k.RIGHT.isDown || vkeys.right) dx++; if (k.W.isDown || k.UP.isDown || vkeys.up) dy--; if (k.S.isDown || k.DOWN.isDown || vkeys.down) dy++; }
+    if (!this.menu && !this.dialog) { if (k.A.isDown || k.LEFT.isDown || vkeys.left) dx--; if (k.D.isDown || k.RIGHT.isDown || vkeys.right) dx++; if (k.W.isDown || k.UP.isDown || vkeys.up) dy--; if (k.S.isDown || k.DOWN.isDown || vkeys.down) dy++; }
     p.moving = dx !== 0 || dy !== 0;
     if (p.moving) {
       const len = Math.hypot(dx, dy); dx /= len; dy /= len;

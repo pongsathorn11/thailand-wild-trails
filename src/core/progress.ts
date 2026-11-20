@@ -5,6 +5,7 @@
 import type { Profile } from './profile';
 import { levelInfo, trailDone } from './camp';
 import { TRAILS, type Region } from '../data/trails';
+import { storyComplete } from './story';
 
 type Any = Record<string, any>;
 const A = (p: Profile) => p as Any;
@@ -74,6 +75,10 @@ export const TITLES: { id: string; cond: (p: Profile) => boolean }[] = [
   { id: 'photographer', cond: (p) => achTier(p, 'photos') >= 2 },
   { id: 'proCamper', cond: (p) => achTier(p, 'decorate') >= 2 },
   { id: 'legend', cond: (p) => rankIndex(p) >= RANKS.length - 1 },
+  // NPC stories (src/core/story.ts)
+  { id: 'rangerFriend', cond: (p) => storyComplete(p, 'kham') },
+  { id: 'campCook', cond: (p) => storyComplete(p, 'daeng') },
+  { id: 'lightChaser', cond: (p) => storyComplete(p, 'fah') },
 ];
 export const REGIONS: Region[] = ['north', 'northeast', 'west', 'central', 'east', 'south'];
 const regionDone = (p: Profile, r: Region) => { const ts = TRAILS.filter((x) => x.region === r); return ts.length > 0 && ts.every((x) => trailDone(p, x.id)); };

@@ -6,12 +6,13 @@ import type { Profile } from './profile';
 export interface HikeResult { timeSec: number; km: number; photos: string[]; litter: number; secretFound: boolean }
 export interface Summary { exp: number; coins: number; time: string; km: string; photos: number; litter: number; secret: boolean; date: string }
 
-/** photoBonus: the Photography skill (+20% photo EXP per rank). */
-export const hikeExp = (r: HikeResult, photoBonus = 0): number => 50 + r.litter * 10 + r.photos.reduce((s, p) => s + Math.round((PHOTO_EXP[p] ?? 0) * (1 + photoBonus)), 0);
+/** photoBonus: the Photography skill (+20% photo EXP per rank). photoMult: a seasonal event's boost per subject. */
+export const hikeExp = (r: HikeResult, photoBonus = 0, photoMult: (subject: string) => number = () => 1): number =>
+  50 + r.litter * 10 + r.photos.reduce((s, p) => s + Math.round((PHOTO_EXP[p] ?? 0) * (1 + photoBonus) * photoMult(p)), 0);
 export const hikeCoins = (r: HikeResult): number => 20 + r.litter * 3 + r.photos.length * 2;
 
-export function applyFinish(p: Profile, trail: TrailDef, r: HikeResult, today = new Date().toISOString().slice(0, 10), photoBonus = 0): Summary {
-  const exp = hikeExp(r, photoBonus), coins = hikeCoins(r);
+export function applyFinish(p: Profile, trail: TrailDef, r: HikeResult, today = new Date().toISOString().slice(0, 10), photoBonus = 0, photoMult?: (subject: string) => number): Summary {
+  const exp = hikeExp(r, photoBonus, photoMult), coins = hikeCoins(r);
   const pr = p as Record<string, any>;
   pr.exp = (pr.exp || 0) + exp;
   pr.coins = (pr.coins || 0) + coins;

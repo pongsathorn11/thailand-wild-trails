@@ -31,7 +31,7 @@ export class PackScene extends Phaser.Scene {
 
   init(data: { trailId?: string }): void {
     this.trail = trailById(data.trailId ?? '') ?? TRAILS[0];
-    this.weather = rollWeather(this.trail);
+    this.weather = rollWeather(this.trail, Math.random(), this.profile.day || 1);
     this.row = 0; this.coopMsg = ''; this.joining = false;
   }
 
@@ -62,7 +62,7 @@ export class PackScene extends Phaser.Scene {
   private switchTrail(dir: 1 | -1): void {
     const id = cycleTrail(this.profile, this.trail.id, dir);
     if (id === this.trail.id) { audio.sfx('error'); return; }
-    this.trail = trailById(id)!; this.weather = rollWeather(this.trail); audio.sfx('blip');
+    this.trail = trailById(id)!; this.weather = rollWeather(this.trail, Math.random(), this.profile.day || 1); audio.sfx('blip');
   }
 
   private coopMsg = '';

@@ -10,6 +10,9 @@ import { JOURNAL_TABS, type CampScene } from './CampScene';
 import { RANKS, rankIndex, skillPoints } from '../core/progress';
 import { PHOTO_EXP } from '../data/photos';
 import { nameTag } from './nameTag';
+import { npcView } from '../core/story';
+import { NPCS } from '../data/story';
+import { eventBanner } from './storyText';
 import { drawJournalBook, medal } from '../ui/journalBook';
 import { splitIcon, toastNote } from '../ui/theme';
 import { badge, bar, C, FONT, greenButton, keyCap, notch, paper, PIXEL_FONT, posts, rule, scrim, tag, TX, wood, woodButton } from '../ui/theme';
@@ -47,6 +50,7 @@ export class CampHudScene extends Phaser.Scene {
       if (touchClaims(p)) return;
       const camp = this.scene.get('camp') as CampScene;
       const inside = (h: Hit) => p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h;
+      if (camp.dialog) { camp.dialogNext(); return; }
       if (!camp.menu) {
         const a = this.actHits.find(inside);
         if (a) window.dispatchEvent(new KeyboardEvent('keydown', { code: a.code }));
@@ -93,7 +97,7 @@ export class CampHudScene extends Phaser.Scene {
       this.text(`🪙 ${p.coins}`, 14 + cw - 14, 84, 14, TX.gold, 'right', true, PIXEL_FONT);
 
       // ---- day and season sign ----
-      const day = p.day || 1, left = SEASON_DAYS - ((day - 1) % SEASON_DAYS);
+      const day = p.day || 1, left = SEASON_DAYS - ((day - 1) % SEASON_DAYS), ev = eventBanner(day);
       const dayStr = `${t('season_' + seasonOf(day))} · ${t('day', { n: day })}`;
       let below = 114;
       if (narrow) {
@@ -101,11 +105,13 @@ export class CampHudScene extends Phaser.Scene {
         this.signText(dayStr, 28, below + 20, 14);
         this.text(t('ui_season_left', { n: left }), 14 + cw - 14, below + 20, 11.5, TX.creamDim, 'right');
         below += 48;
+        if (ev) { tag(g, 14, below - 4, cw, 26, 0.9); this.text(ev, 14 + cw / 2, below + 9, 12.5, TX.gold, 'center', true).setCrop(0, 0, cw - 12, 24); below += 30; }
       } else {
         const dt = this.signText(dayStr, IW / 2, 34, 17, TX.cream, 'center');
         const st = this.text(t('ui_season_left', { n: left }), IW / 2, 56, 11.5, TX.creamDim, 'center');
         const dw = Math.max(dt.width, st.width) + 48;
         wood(g, IW / 2 - dw / 2, 14, dw, 58);
+        if (ev) { const et = this.text(ev, IW / 2, 90, 13.5, TX.gold, 'center', true); tag(g, IW / 2 - et.width / 2 - 12, 76, et.width + 24, 28, 0.9); }
       }
 
       // ---- quest board: wood header hanging a paper note ----
@@ -141,8 +147,9 @@ export class CampHudScene extends Phaser.Scene {
     }
 
     // ---- toasts: paper notes ----
+    const toastY = narrow ? 250 : 84 + (eventBanner(p.day || 1) && !camp.menu ? 34 : 0);
     camp.toasts.forEach((tt, i) => {
-      const y = (narrow ? 250 : 84) + i * 44, w = Math.min(IW - 28, 480), a = Math.min(1, tt.t), [icon, rest] = splitIcon(tt.text);
+      const y = toastY + i * 44, w = Math.min(IW - 28, 480), a = Math.min(1, tt.t), [icon, rest] = splitIcon(tt.text);
       const n = toastNote(g, IW / 2 - w / 2, y, w, 38, !!icon, a);
       if (icon) { this.text(icon, n.iconX, y + 19, 14, '#ffffff', 'center').setAlpha(a); this.text(rest, n.tx, y + 19, 14, TX.ink, 'left', true).setAlpha(a).setCrop(0, 0, IW / 2 + w / 2 - n.tx - 10, 30); }
       else this.text(rest, IW / 2, y + 19, 14, TX.ink, 'center', true).setAlpha(a);
@@ -179,6 +186,14 @@ export class CampHudScene extends Phaser.Scene {
       paper(g, IW / 2 - bw / 2, by, bw, 62);
       this.text(s, IW / 2, by + 20, 15, TX.ink, 'center', true);
       if (!touch.enabled) this.text(t('build_hint'), IW / 2, by + 42, 12, TX.inkSoft, 'center');
+    } else if (camp.dialog) {
+      const d = camp.dialog, n = NPCS.find((x) => x.id === d.npc)!, dw = Math.min(660, IW - 28), dh = 128;
+      const dyp = touch.enabled ? IH - 300 - dh + 40 : desktopBar ? barY - dh - 14 : IH - dh - 30, dxp = IW / 2 - dw / 2;
+      paper(g, dxp, dyp, dw, dh);
+      this.text(`${n.icon} ${t('npc_' + n.id)}`, dxp + 20, dyp + 22, 15, TX.green, 'left', true);
+      this.text(t('npc_' + n.id + '_role'), dxp + dw - 20, dyp + 22, 11.5, TX.inkFaint, 'right');
+      this.text(d.lines[d.i] ?? '', dxp + 20, dyp + 44, 15, TX.ink).setOrigin(0, 0).setWordWrapWidth(dw - 40, true);
+      this.text(`${t('story_next')}  (${d.i + 1}/${d.lines.length})`, dxp + dw - 20, dyp + dh - 16, 12, TX.inkFaint, 'right');
     } else if (!camp.menu) {
       const tg = camp.findTarget();
       const py = touch.enabled ? IH - 290 : desktopBar ? barY - 50 : IH - 96;
@@ -202,8 +217,20 @@ export class CampHudScene extends Phaser.Scene {
       wood(g, 14, IH - 74, w, 38); st.setPosition(26, IH - 55);
     }
 
+    // story markers over the NPCs
+    if (!camp.menu && !camp.dialog) {
+      const cam = camp.cameras.main;
+      for (const n of NPCS) {
+        const v = npcView(p, n.id), mark = v.status === 'new' ? '!' : v.status === 'ready' ? '💬' : '';
+        if (!mark) continue;
+        const mx = (n.x * 16 + 8 - cam.worldView.x) * cam.zoom, my = (n.y * 16 - 22 - cam.worldView.y) * cam.zoom + Math.sin(this.time.now / 250) * 3;
+        badge(g, mx - 11, my - 11, 22);
+        this.text(mark, mx, my, mark === '!' ? 15 : 12, TX.woodShadow, 'center', true, PIXEL_FONT);
+      }
+    }
+
     // name and title above the player
-    if (!camp.menu) {
+    if (!camp.menu && !camp.dialog) {
       const cam = camp.cameras.main, sx = (camp.pos.x - cam.worldView.x) * cam.zoom, sy = (camp.pos.y - 30 - cam.worldView.y) * cam.zoom;
       const nt = this.text(nameTag(p), sx, sy, 12, TX.gold, 'center');
       const pt = touch.enabled && !camp.build ? camp.findTarget() : null, pw2 = pt ? pt.label.length * 9 + 60 : 0;

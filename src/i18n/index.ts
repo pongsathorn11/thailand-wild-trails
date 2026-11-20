@@ -1,9 +1,10 @@
 import th from './th.json';
 import en from './en.json';
 import { EXTRA } from './extra';
+import { STORY_TEXT } from './story';
 
 export type Lang = 'th' | 'en';
-const STR: Record<Lang, Record<string, unknown>> = { th: { ...th, ...EXTRA.th }, en: { ...en, ...EXTRA.en } };
+const STR: Record<Lang, Record<string, unknown>> = { th: { ...th, ...EXTRA.th, ...STORY_TEXT.th }, en: { ...en, ...EXTRA.en, ...STORY_TEXT.en } };
 let lang: Lang = 'th';
 
 export const setLang = (l: Lang): void => { lang = l; };

@@ -23,6 +23,8 @@ import { checkProgress, skillBonus, skillRank } from '../core/progress';
 import { progressMessages } from './progressText';
 import { audio } from '../audio/audio';
 import { cloud } from '../net/cloud';
+import { eventPhotoMult, eventWeatherChances, notifyStory, type Detail } from '../core/story';
+import { eventBanner, storyMessages } from './storyText';
 import { CoopSession, coopPlan, type Other } from '../net/coop';
 import type { CoopInput } from '../core/coop';
 import { installMiniSheet } from '../gfx/sheets';
@@ -33,8 +35,8 @@ const TS = CONFIG.TILE;
 const WEATHER_DEFAULT: Record<WeatherId, number> = { clear: 0.5, fog: 0.3, drizzle: 0.2 };
 const STALL_PRICE = 8;
 
-export function rollWeather(trail: TrailDef, rnd = Math.random()): WeatherId {
-  const ch = trail.weatherChances ?? WEATHER_DEFAULT;
+export function rollWeather(trail: TrailDef, rnd = Math.random(), day?: number): WeatherId {
+  const base = trail.weatherChances ?? WEATHER_DEFAULT, ch = day ? eventWeatherChances(trail, day, base) : base;
   let acc = 0;
   for (const id of ['clear', 'fog', 'drizzle'] as WeatherId[]) { acc += ch[id]; if (rnd < acc) return id; }
   return 'clear';
@@ -111,7 +113,7 @@ export class HikeScene extends Phaser.Scene {
   create(): void {
     this.runId = cloud.startRun(this.trail.id).catch(() => null);
     this.world = buildWorld(this.trail);
-    this.weather = this.presetWeather ?? rollWeather(this.trail);
+    this.weather = this.presetWeather ?? rollWeather(this.trail, Math.random(), this.profile.day || 1);
     this.season = seasonOf(this.profile.day || 1);
     // the backpack comes from the packing screen; packed cooked food leaves camp storage
     const st = this.profile.storage;
@@ -159,6 +161,8 @@ export class HikeScene extends Phaser.Scene {
     if (this.coop) this.setupCoop(this.coop);
 
     if (!this.scene.isActive('hud')) this.scene.launch('hud');
+    const ev = eventBanner(this.profile.day || 1);
+    if (ev) this.toast(ev);
     this.toast(`📍 ${t(this.trail.trailKey)}`);
   }
 
@@ -242,7 +246,7 @@ export class HikeScene extends Phaser.Scene {
     if (this.hasPhoto(subject)) { this.toast(t('msg_photoDup')); return; }
     this.photos.push(subject);
     this.toast(t('msg_photo', { s: t('ph_' + subject) }));
-    this.quest('takePhoto');
+    this.quest('takePhoto', { subject });
   }
   private sumEvents(key: 'speedMult' | 'tempC' | 'fog'): number {
     return this.activeEvents.reduce((v, a) => { const d = EVENTS.find((e) => e.id === a.id)!; const x = d[key]; return key === 'speedMult' ? v * (x ?? 1) : v + (x ?? 0); }, key === 'speedMult' ? 1 : 0);
@@ -414,7 +418,10 @@ export class HikeScene extends Phaser.Scene {
 
   /** Shown when arriving back at camp: quests completed, level-ups, newly unlocked trails. */
   campMessages: string[] = [];
-  private quest(kind: QuestKind): void {
+  private quest(kind: QuestKind, detail: Detail = {}): void {
+    const sm = storyMessages(notifyStory(this.profile, kind, { trail: this.trail.id, ...detail }));
+    sm.lines.forEach((l) => this.toast(l));
+    if (sm.lines.length) audio.sfx(sm.fanfare ? 'fanfare' : 'chime');
     for (const d of notifyQuest(this.profile, kind)) {
       this.toast(t('msg_questDone', { q: t('q_' + d.id) }) + ` +${d.exp} EXP +${d.coins}🪙`); audio.sfx('chime');
       if (d.levelUp) { this.toast(t('msg_levelUp', { n: d.levelUp })); audio.sfx('fanfare'); }
@@ -424,10 +431,11 @@ export class HikeScene extends Phaser.Scene {
   private finish(): void {
     const lockedBefore = lockedTrails(this.profile), levelBefore = levelInfo(this.profile.exp).level;
     this.summary = applyFinish(this.profile, this.trail, { timeSec: this.elapsed, km: walkedKm(this.hiker, this.world), photos: this.photos, litter: this.litterTaken, secretFound: this.secretFound },
-      undefined, skillBonus(this.profile, 'photography'));
+      undefined, skillBonus(this.profile, 'photography'), (s) => eventPhotoMult(this.profile.day || 1, s));
     const msgs: string[] = [];
     const level = levelInfo(this.profile.exp).level;
     if (level > levelBefore) msgs.push(t('msg_levelUp', { n: level }));
+    msgs.push(...storyMessages(notifyStory(this.profile, 'completeTrail', { trail: this.trail.id })).lines);
     for (const d of notifyQuest(this.profile, 'completeTrail')) msgs.push(t('msg_questDone', { q: t('q_' + d.id) }) + ` +${d.exp} EXP +${d.coins}🪙`);
     msgs.push(...CampScene.unlockMessages(this.profile, lockedBefore));
     msgs.push(...progressMessages(checkProgress(this.profile)));

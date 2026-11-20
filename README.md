@@ -76,6 +76,7 @@ Rules of the codebase (from the original brief, section 22):
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
 | M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
+| M11 Stories + events | three camp NPCs (ranger Uncle Kham, cook Auntie Daeng, photographer Fah) with 3-chapter storylines, friendship hearts and story titles; seasonal events on the in-game calendar (Sea of Mist Festival, Hiking Festival, Planting Season) with goals, festival stamps, more fog / bonus photo EXP; rules in `src/core/story.ts`, content in `src/data/story.ts`, text in `src/i18n/story.ts` | ✅ |
 | M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · ✅ server live |
 
 When the port reaches parity (M7), the prototype is retired and this build is what gets published.

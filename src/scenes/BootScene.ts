@@ -11,6 +11,7 @@ import { installMiniSheet } from '../gfx/sheets';
 import { resolveLook, GUIDE_LOOK } from '../data/looks';
 import { setLang } from '../i18n';
 import { TRAILS, trailById } from '../data/trails';
+import { NPCS } from '../data/story';
 
 /** Builds every code-drawn texture once, loads the profile, then starts the hike. */
 export class BootScene extends Phaser.Scene {
@@ -39,6 +40,7 @@ export class BootScene extends Phaser.Scene {
 
     this.addSheet('hiker', paintMiniSheet(resolveLook(profile.body, profile.looks[profile.body])));
     this.addSheet('guide', paintMiniSheet(GUIDE_LOOK));
+    for (const n of NPCS) this.addSheet('npc-' + n.id, paintMiniSheet(n.look));
 
     try { await Promise.all([document.fonts.load('16px Mitr'), document.fonts.load('700 16px "Pixelify Sans"')]); } catch { /* fallback font is fine */ }
 

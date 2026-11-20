@@ -10,7 +10,11 @@ import { t } from '../i18n';
 import type { HikeScene } from './HikeScene';
 import { nameTag } from './nameTag';
 import { levelInfo } from '../core/camp';
-import { bar, C, FONT, greenButton, keyCap, paper, PIXEL_FONT, posts, scrim, slot, tag, TX, wood } from '../ui/theme';
+import { bar, C, FONT, greenButton, keyCap, paper, PIXEL_FONT, pixelIcon, posts, scrim, slot, STAT_ICONS, tag, TX, wood, woodButton } from '../ui/theme';
+import { paintHeadThumb } from '../gfx/chibi';
+import { lookOf } from '../core/creator';
+
+interface SysHit { x: number; y: number; w: number; h: number; code: string }
 
 const TS = CONFIG.TILE;
 const EV_ICON: Record<string, string> = { slippery: '⚠️', coldWind: '🌬️', fogRoll: '🌫️', wildlife: '🦌' };
@@ -25,6 +29,8 @@ export class HudScene extends Phaser.Scene {
   private used = 0;
   private rain: { x: number; y: number; s: number }[] = [];
   private hotbar = { x0: 0, y: 0, sz: 0, step: 0 };
+  private head!: Phaser.GameObjects.Image;
+  private sysHits: SysHit[] = [];
 
   constructor() { super('hud'); }
 
@@ -35,13 +41,20 @@ export class HudScene extends Phaser.Scene {
     this.g = this.add.graphics().setDepth(1);
     this.mini = this.add.image(0, 0, '__WHITE').setOrigin(0).setDepth(1.5).setVisible(false);
     this.top = this.add.graphics().setDepth(3);
+    // portrait of the player's own look for the status sign
+    const hike0 = this.scene.get('hike') as HikeScene;
+    if (this.textures.exists('hud-head')) this.textures.remove('hud-head');
+    this.textures.addCanvas('hud-head', paintHeadThumb(lookOf(hike0.profile), 48, '#f2e2bc'));
+    this.head = this.add.image(0, 0, 'hud-head').setOrigin(0).setDepth(1.5);
     this.scale.on('resize', (s: Phaser.Structs.Size) => this.night.resize(s.width, s.height));
     for (let i = 0; i < 160; i++) this.rain.push({ x: Math.random() * 2000, y: Math.random() * 1200, s: 420 + Math.random() * 240 });
     // click/tap a hotbar slot to use it
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (touchClaims(p)) return;
       const hb = this.hotbar, hike = this.scene.get('hike') as HikeScene;
-      if (hike.finished || p.y < hb.y || p.y > hb.y + hb.sz || p.x < hb.x0) return;
+      const sh = this.sysHits.find((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h);
+      if (sh) { window.dispatchEvent(new KeyboardEvent('keydown', { code: sh.code })); return; }
+      if (hike.paused || hike.finished || p.y < hb.y || p.y > hb.y + hb.sz || p.x < hb.x0) return;
       const i = Math.floor((p.x - hb.x0) / hb.step);
       if (i < CONFIG.MAX_SLOTS) hike.useSlot(i);
     });
@@ -60,17 +73,18 @@ export class HudScene extends Phaser.Scene {
     return this.text(s, x, y, size, color, align, bold, 2, font).setShadow(0, 2, TX.woodShadow, 0, false, true);
   }
 
-  private bar(x: number, y: number, w: number, v: number, color: number, label: string, warn: boolean): void {
-    this.text(label, x, y + 6, 13, TX.ink);
-    bar(this.g, x + 40, y, w, 12, v / 100, color);
-    this.text(String(Math.ceil(v)), x + 40 + w + 30, y + 6, 13, warn ? TX.red : TX.ink, 'right', true, 2, PIXEL_FONT);
+  private bar(x: number, y: number, w: number, v: number, color: number, label: string, warn: boolean, icon: keyof typeof STAT_ICONS): void {
+    pixelIcon(this.g, STAT_ICONS[icon], x, y - 1, 2, color);
+    this.text(label, x + 20, y + 6, 13, TX.ink);
+    bar(this.g, x + 52, y, w, 12, v / 100, color);
+    this.text(String(Math.ceil(v)), x + 52 + w + 30, y + 6, 13, warn ? TX.red : TX.ink, 'right', true, 2, PIXEL_FONT);
   }
 
   update(_t: number, deltaMs: number): void {
     const hike = this.scene.get('hike') as HikeScene;
     if (!hike?.hiker || !hike.world) return;
     const IW = this.scale.width, IH = this.scale.height, g = this.g, h = hike.hiker, cam = hike.cameras.main, narrow = IW < 700;
-    g.clear(); this.top.clear(); this.used = 0;
+    g.clear(); this.top.clear(); this.used = 0; this.sysHits = [];
 
     // ---- light and weather ----
     const sx = (h.x - cam.worldView.x) * cam.zoom, sy = (h.y - 10 - cam.worldView.y) * cam.zoom;
@@ -100,7 +114,9 @@ export class HudScene extends Phaser.Scene {
     // ---- name and title above the hiker ----
     if (!hike.finished) {
       const ty = sy - 22 * cam.zoom, nt = this.text(nameTag(hike.profile), sx, ty, 12, TX.gold, 'center');
-      tag(g, sx - nt.width / 2 - 8, ty - 10, nt.width + 16, 20, 0.8);
+      const pt = touch.enabled && !hike.dialog ? hike.findTarget() : null, pyT = IH - 290, pw2 = pt ? pt.label.length * 9 + 60 : 0;
+      if (pt && Math.abs(ty - (pyT + 18)) < 34 && Math.abs(sx - IW / 2) < (nt.width + pw2) / 2 + 8) nt.setVisible(false);
+      else tag(g, sx - nt.width / 2 - 8, ty - 10, nt.width + 16, 20, 0.8);
       // friends in a co-op room
       for (const o of hike.coopTags()) {
         const ox = (o.x - cam.worldView.x) * cam.zoom, oy = (o.y - 10 - cam.worldView.y) * cam.zoom - 22 * cam.zoom;
@@ -111,20 +127,25 @@ export class HudScene extends Phaser.Scene {
     }
 
     // ---- status sign: name, level, four stats on paper, pack ----
-    const p = hike.profile, L = levelInfo(p.exp ?? 0), SW = narrow ? Math.min(290, IW - hike.world.w * 1.6 - 24 - 10 - 14 - 8) : 300, SX = 14, SY = 14, SH = 176;
+    const p = hike.profile, L = levelInfo(p.exp ?? 0), SW = narrow ? Math.min(290, IW - hike.world.w * 1.6 - 24 - 10 - 14 - 8) : 300, SX = 14, SY = 14, SH = 198;
     wood(g, SX, SY, SW, SH);
-    this.signText((p.name ?? '').trim() || t('on_hiker'), SX + 14, SY + 22, 15);
+    // portrait, name, title chip, level
+    g.fillStyle(C.paperEdge, 1).fillRect(SX + 10, SY + 10, 48, 48);
+    this.head.setPosition(SX + 12, SY + 12).setDisplaySize(44, 44).setVisible(true);
+    this.signText((p.name ?? '').trim() || t('on_hiker'), SX + 68, SY + 22, 15).setCrop(0, 0, SW - 130, 30);
     this.text(`Lv.${L.level}`, SX + SW - 14, SY + 22, 15, TX.gold, 'right', true, 2, PIXEL_FONT);
-    paper(g, SX + 8, SY + 40, SW - 16, 104);
+    const tt0 = this.text(t('title_' + ((p as typeof p & { title?: string }).title ?? 'newbie')), SX + 76, SY + 46, 11, TX.gold, 'left', true).setCrop(0, 0, SW - 98, 30);
+    tag(g, SX + 68, SY + 37, Math.min(tt0.width + 16, SW - 82), 18, 1);
+    paper(g, SX + 8, SY + 64, SW - 16, 104);
     const low = (v: number) => v < 25 && Math.sin(this.time.now / 125) > 0;
-    const bw = SW - 16 - 24 - 40 - 34;
-    this.bar(SX + 20, SY + 52, bw, h.stamina, h.exhausted ? C.red : C.stamina, t('stamina'), h.stamina < 25);
-    this.bar(SX + 20, SY + 74, bw, h.hunger, low(h.hunger) ? 0xffd27a : C.hunger, t('hunger'), h.hunger < 25);
-    this.bar(SX + 20, SY + 96, bw, h.thirst, low(h.thirst) ? 0xa8dcff : C.thirst, t('thirst'), h.thirst < 25);
-    this.bar(SX + 20, SY + 118, bw, h.warmth, h.warmth < 30 ? C.cold : C.warmth, t('warmth'), h.warmth < 30);
+    const bw = SW - 16 - 24 - 52 - 34;
+    this.bar(SX + 20, SY + 76, bw, h.stamina, h.exhausted ? C.red : C.stamina, t('stamina'), h.stamina < 25, 'stamina');
+    this.bar(SX + 20, SY + 98, bw, h.hunger, low(h.hunger) ? 0xffd27a : C.hunger, t('hunger'), h.hunger < 25, 'hunger');
+    this.bar(SX + 20, SY + 120, bw, h.thirst, low(h.thirst) ? 0xa8dcff : C.thirst, t('thirst'), h.thirst < 25, 'thirst');
+    this.bar(SX + 20, SY + 142, bw, h.warmth, h.warmth < 30 ? C.cold : C.warmth, t('warmth'), h.warmth < 30, 'warmth');
     const kg = weight(hike.bp), over = kg > CONFIG.MAX_WEIGHT_KG;
-    this.text(`🎒 ${kg.toFixed(1)}/${CONFIG.MAX_WEIGHT_KG} kg · ${hike.bp.slots.length}/${CONFIG.MAX_SLOTS} ${t('slots')}`, SX + 14, SY + 157, 12.5, over ? TX.redOnWood : TX.cream);
-    this.text(`📷 ${hike.photos.length}`, SX + SW - 14, SY + 157, 12.5, TX.creamDim, 'right');
+    this.text(`🎒 ${kg.toFixed(1)}/${CONFIG.MAX_WEIGHT_KG} kg · ${hike.bp.slots.length}/${CONFIG.MAX_SLOTS} ${t('slots')}`, SX + 14, SY + 181, 12.5, over ? TX.redOnWood : TX.cream).setCrop(0, 0, SW - 70, 30);
+    this.text(`📷 ${hike.photos.length}`, SX + SW - 14, SY + 181, 12.5, TX.creamDim, 'right');
 
     // ---- clock, weather, temperature, minimap ----
     const icon = { clear: '☀️', fog: '🌫️', drizzle: '🌦️' }[hike.weather];
@@ -137,7 +158,9 @@ export class HudScene extends Phaser.Scene {
       this.signText(clock, mmX + mmW / 2 + 10, 32, 18, TX.gold, 'center', true, PIXEL_FONT);
       this.text(temp, mmX + mmW - 2, 33, 12.5, TX.cream, 'right');
     }
-    wood(g, mmX - 10, 56, mmW + 20, mmH + 20 + (hike.activeEvents.length ? 24 : 0));
+    wood(g, mmX - 10, 56, mmW + 20, mmH + 44);
+    let seen = 0; for (let i = 0; i < hike.revealed.length; i++) seen += hike.revealed[i];
+    this.text(t('ui_explored', { n: Math.round((seen / hike.revealed.length) * 100) }), mmX, mmY + mmH + 18, narrow ? 10.5 : 12, TX.creamDim);
     g.fillStyle(C.woodDeep, 1).fillRect(mmX - 3, mmY - 3, mmW + 6, mmH + 6);
     g.fillStyle(0x0e1612, 1).fillRect(mmX, mmY, mmW, mmH);
     this.mini.setTexture('minimap').setPosition(mmX, mmY).setDisplaySize(mmW, mmH).setVisible(true);
@@ -151,7 +174,7 @@ export class HudScene extends Phaser.Scene {
       if (known && poi.type !== 'secret') dot(poi.x, poi.y, poi.type === 'viewpoint' ? 0x4fc3f7 : poi.type === 'goal' ? C.gold : C.paper, 2);
     }
     dot(h.x / TS - 0.5, h.y / TS - 0.5, 0xffffff, 3);
-    hike.activeEvents.forEach((a, i) => this.text(EV_ICON[a.id] ?? '•', mmX + mmW - 10 - i * 22, mmY + mmH + 20, 14, '#fff', 'center'));
+    hike.activeEvents.forEach((a, i) => this.text(EV_ICON[a.id] ?? '•', mmX + mmW - 10 - i * 22, mmY + mmH + 18, 14, '#fff', 'center'));
 
     // ---- trail sign + objective on paper hanging under it ----
     const tr = hike.trail, toCp = !!tr.checkpointId && !hike.checkpoint;
@@ -232,6 +255,18 @@ export class HudScene extends Phaser.Scene {
     if (h.zeroTimer > 0) g.fillStyle(0xa01414, 0.15 + 0.1 * Math.sin(this.time.now / 160)).fillRect(0, 0, IW, IH);
     if (hike.flash > 0) this.top.fillStyle(0xffffff, hike.flash).fillRect(0, 0, IW, IH);
 
+    // desktop system buttons (touch screens have their own): sound, music, pause
+    if (!touch.enabled && !hike.finished && hbX + hbW + 3 * 52 + 24 < IW) {
+      const prefs = p as typeof p & { sound?: boolean; music?: boolean };
+      const btns = [{ code: 'KeyM', icon: prefs.sound === false ? '🔇' : '🔊' }, { code: 'KeyN', icon: prefs.music === false ? '🚫' : '🎵' }, { code: 'KeyP', icon: hike.paused ? '▶' : '⏸' }];
+      btns.forEach((b, i) => {
+        const x = IW - 14 - (btns.length - i) * 52 + 4, y = IH - 62;
+        woodButton(g, x, y, 46, 46, false, b.code === 'KeyP' && hike.paused);
+        this.text(b.icon, x + 23, y + 23, 18, TX.cream, 'center', true);
+        this.sysHits.push({ x, y, w: 46, h: 46, code: b.code });
+      });
+    }
+    if (hike.paused) this.drawPause(IW, IH);
     if (hike.summary) this.drawSummary(IW, IH, hike);
     else if (hike.rescued) this.drawRescue(IW, IH, hike.rescued);
     for (let i = this.used; i < this.texts.length; i++) this.texts[i].setVisible(false);
@@ -264,6 +299,19 @@ export class HudScene extends Phaser.Scene {
     const bw = Math.min(260, pw - 48), by = py + ph - 58;
     greenButton(g, IW / 2 - bw / 2, by, bw, 44);
     this.signText(t('port_restart'), IW / 2, by + 20, 15, '#ffffff', 'center').setDepth(4).setShadow(0, 2, '#24461a', 0, false, true);
+  }
+
+  private drawPause(IW: number, IH: number): void {
+    const g = this.top, pw = Math.min(420, IW - 32), ph = 190, px = IW / 2 - pw / 2, py = IH / 2 - ph / 2;
+    scrim(g, IW, IH, 0.55);
+    wood(g, px, py, pw, 56);
+    paper(g, px, py + 48, pw, ph - 48);
+    this.signText('⏸ ' + t('ui_paused'), IW / 2, py + 28, 20, TX.cream, 'center').setDepth(4);
+    this.text(t('ui_paused_sub'), IW / 2, py + 84, 13, TX.inkSoft, 'center', false, 4).setWordWrapWidth(pw - 40, true);
+    const bw = Math.min(240, pw - 48), by = py + ph - 62;
+    greenButton(g, IW / 2 - bw / 2, by, bw, 46);
+    this.signText(t('ui_resume'), IW / 2, by + 21, 16, '#ffffff', 'center').setDepth(4).setShadow(0, 2, '#24461a', 0, false, true);
+    this.sysHits.push({ x: IW / 2 - bw / 2, y: by, w: bw, h: 46, code: 'KeyP' });
   }
 
   private drawRescue(IW: number, IH: number, reason: 'starve' | 'cold'): void {

@@ -101,7 +101,7 @@ export class HikeScene extends Phaser.Scene {
     this.coopSprites.clear();
     this.presetWeather = data.weather ?? null;
     Object.assign(this, { elapsed: 0, checkpoint: false, finished: false, summary: null, rescued: null, toasts: [], photos: [], litterTaken: 0,
-      secretFound: false, flash: 0, dialog: null, activeEvents: [], wetUntil: 0, zone: '', overWarned: false, campMessages: [] });
+      secretFound: false, flash: 0, dialog: null, activeEvents: [], wetUntil: 0, zone: '', overWarned: false, campMessages: [], paused: false });
     this.nextEventIn = 25 + Math.random() * 15;
     this.canopies = []; this.sparkles = []; this.litter = []; this.spawns = []; this.bird = null;
     this.done.clear(); this.poiObjs.clear(); this.warned.clear(); this.seenZones.clear();
@@ -262,7 +262,18 @@ export class HikeScene extends Phaser.Scene {
     return { left: k.A.isDown || k.LEFT.isDown || vkeys.left, right: k.D.isDown || k.RIGHT.isDown || vkeys.right, up: k.W.isDown || k.UP.isDown || vkeys.up, down: k.S.isDown || k.DOWN.isDown || vkeys.down, run: k.SHIFT.isDown || vkeys.run };
   }
 
+  /** Solo hikes can pause (P): the clock, body stats and events stop. Co-op rooms keep running on the server. */
+  paused = false;
+  togglePause(): void {
+    if (this.finished) return;
+    if (this.coop) { this.toast(t('ui_pause_coop')); audio.sfx('error'); return; }
+    this.paused = !this.paused;
+    audio.sfx('blip');
+  }
+
   private onKey(code: string): void {
+    if (code === 'KeyP' || (this.paused && (code === 'Escape' || code === 'Enter'))) { this.togglePause(); return; }
+    if (this.paused) return;
     if (this.finished) {
       if (code === 'Enter' || code === 'Space') this.scene.start('camp', { messages: this.campMessages });
       return;
@@ -514,7 +525,7 @@ export class HikeScene extends Phaser.Scene {
     this.flash = Math.max(0, this.flash - dt * 3);
     const now = this.time.now / 1000;
     for (const c of this.canopies) c.img.x = c.x + Math.round(Math.sin(now * 1.4 + c.phase) * 0.8);
-    if (this.finished) return;
+    if (this.finished || this.paused) return;
 
     this.elapsed += dt;
     const h = this.hiker, bp = this.bp;

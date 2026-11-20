@@ -184,7 +184,7 @@ export class CampScene extends Phaser.Scene {
       case 'campfire': this.menu = { type: 'cook', sel: 0 }; break;
       case 'board': this.menu = { type: 'quests', sel: 0 }; break;
       case 'mailbox': this.menu = { type: 'shop', sel: 0 }; break;
-      case 'trailSign': this.menu = { type: 'trails', sel: Math.max(0, TRAILS.findIndex((x) => x.id === p.lastTrail)) }; break;
+      case 'trailSign': this.openTrails(); break;
     }
   }
 
@@ -331,6 +331,9 @@ export class CampScene extends Phaser.Scene {
     this.rebuildFurniture(); this.save();
   }
 
+  /** Trail picker (the trail sign, the T key or the Hike button). */
+  openTrails(): void { this.build = null; this.menu = { type: 'trails', sel: Math.max(0, TRAILS.findIndex((x) => x.id === this.profile.lastTrail)) }; }
+
   // ---------- input ----------
   onKey(code: string): void {
     if (onlinePanelOpen()) return;
@@ -349,6 +352,7 @@ export class CampScene extends Phaser.Scene {
       else if (code === 'Escape' || code === 'KeyB') this.menu = null;
       return;
     }
+    if (code === 'KeyT') { audio.sfx('select'); this.openTrails(); return; }
     if (code === 'KeyK') { this.build = null; this.menu = { type: 'skills', sel: 0 }; return; }
     if (code === 'KeyJ') { this.build = null; this.menu = { type: 'journal', sel: 0, tab: 'album' }; return; }
     if (code === 'KeyB') { this.build = this.build ? null : { sel: 0 }; if (this.build && !ownedFurniture(this.profile).length && !this.camp.placed.length) this.toast(t('build_none')); return; }

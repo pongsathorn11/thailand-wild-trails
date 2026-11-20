@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buy, cook, ensureQuests, expNeed, gainExp, levelInfo, notifyQuest, plotAction, plotStage, sleep, storeQty, trailUnlocked } from './camp';
+import { buy, cook, cycleTrail, ensureQuests, expNeed, gainExp, levelInfo, notifyQuest, plotAction, plotStage, sleep, storeQty, trailUnlocked } from './camp';
 import { migrateProfile } from './profile';
 import { applyFinish } from './rewards';
 import { TRAILS } from '../data/trails';
@@ -66,6 +66,16 @@ describe('quests and unlocks', () => {
     const done = notifyQuest(p, 'completeTrail');
     expect(done[0]).toMatchObject({ id: 'hike', exp: 40, coins: 20 });
     expect(p.coins).toBe(50);
+  });
+  it('cycles the packing screen through unlocked trails only', () => {
+    const p = fresh();
+    expect(cycleTrail(p, TRAILS[0].id, 1)).toBe(TRAILS[0].id); // only the first trail is open
+    applyFinish(p, TRAILS[0], { timeSec: 100, km: 3, photos: ['view'], litter: 4, secretFound: false });
+    const open = TRAILS.filter((tr) => trailUnlocked(p, tr)).map((tr) => tr.id);
+    expect(open.length).toBeGreaterThan(1);
+    expect(cycleTrail(p, open[0], 1)).toBe(open[1]);
+    expect(cycleTrail(p, open[0], -1)).toBe(open[open.length - 1]);
+    expect(open).toContain(cycleTrail(p, open[open.length - 1], 1));
   });
   it('Phu Kradueng unlocks at Lv.2 after Kew Mae Pan', () => {
     const p = fresh(), pkd = TRAILS[1];

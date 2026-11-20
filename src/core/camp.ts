@@ -128,3 +128,9 @@ export const plotAt = (p: Profile, x: number, y: number) => asP(p).camp.plots.fi
 export const trailDone = (p: Profile, id: string): boolean => Object.values(asP(p).passport ?? {}).some((pp: any) => pp.trails && pp.trails[id]);
 export const trailUnlocked = (p: Profile, tr: TrailDef): boolean => !tr.unlock || (levelInfo(p.exp).level >= tr.unlock.level && trailDone(p, tr.unlock.trail));
 export const lockedTrails = (p: Profile): string[] => TRAILS.filter((t) => !trailUnlocked(p, t)).map((t) => t.id);
+/** Next (dir 1) or previous (dir -1) unlocked trail after `fromId`, wrapping around; the same id when it is the only one. */
+export function cycleTrail(p: Profile, fromId: string, dir: 1 | -1): string {
+  const n = TRAILS.length, i0 = Math.max(0, TRAILS.findIndex((t) => t.id === fromId));
+  for (let k = 1; k <= n; k++) { const tr = TRAILS[(i0 + dir * k + n * k) % n]; if (trailUnlocked(p, tr)) return tr.id; }
+  return fromId;
+}

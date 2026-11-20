@@ -30,6 +30,7 @@ export function layoutButtons(v: TouchView, IW: number, IH: number): TouchButton
   } else if (v.screen === 'hike' || v.screen === 'camp') {
     add('act', rx, by + 16, 34, 'E', { code: 'KeyE' });
     add('run', rx - 78, by + 40, 26, '🏃', { hold: 'run' });
+    if (v.screen === 'hike') add('pause', IW - 98, IH - 24, 15, '⏸', { code: 'KeyP' });
     if (v.screen === 'camp') {
       if (v.build) {
         add('place', rx, by - 62, 24, '✔', { code: 'KeyE' }); add('pick', rx - 56, by - 62, 22, 'X', { code: 'KeyX' });

@@ -10,11 +10,12 @@ import { JOURNAL_TABS, type CampScene } from './CampScene';
 import { RANKS, rankIndex, skillPoints } from '../core/progress';
 import { PHOTO_EXP } from '../data/photos';
 import { nameTag } from './nameTag';
-import { badge, bar, C, FONT, keyCap, notch, paper, PIXEL_FONT, posts, rule, scrim, tag, TX, wood, woodButton } from '../ui/theme';
+import { badge, bar, C, FONT, greenButton, keyCap, notch, paper, PIXEL_FONT, posts, rule, scrim, tag, TX, wood, woodButton } from '../ui/theme';
 
 interface Hit { x: number; y: number; w: number; h: number; i: number }
 /** Desktop action bar: each button presses the camp's own key, so mouse and keyboard do the same thing. */
 const ACTIONS = [
+  { id: 'hike', icon: '🥾', key: 'T', code: 'KeyT' },
   { id: 'seed', icon: '🌱', key: 'Q', code: 'KeyQ' },
   { id: 'build', icon: '🔨', key: 'B', code: 'KeyB' },
   { id: 'skills', icon: '⭐', key: 'K', code: 'KeyK' },
@@ -30,6 +31,9 @@ export class CampHudScene extends Phaser.Scene {
   private rowHits: Hit[] = [];
   private tabHits: (Hit & { tab: (typeof JOURNAL_TABS)[number] })[] = [];
   private actHits: (Hit & { code: string })[] = [];
+  /** Clicks inside the open book that miss an entry do nothing (instead of closing it). */
+  private book: Hit | null = null;
+  private bookClose: Hit | null = null;
 
   constructor() { super('campHud'); }
 
@@ -48,7 +52,7 @@ export class CampHudScene extends Phaser.Scene {
       const tb = this.tabHits.find(inside);
       if (tb) { camp.menu.tab = tb.tab; camp.menu.sel = 0; audio.sfx('blip'); return; }
       const r = this.rowHits.find(inside);
-      if (!r) { camp.menu = null; return; }
+      if (!r) { if (this.book && inside(this.book) && !(this.bookClose && inside(this.bookClose))) return; camp.menu = null; return; }
       if (camp.menu.sel === r.i) camp.confirmMenu(); else camp.menu.sel = r.i;
     });
   }
@@ -68,7 +72,7 @@ export class CampHudScene extends Phaser.Scene {
     const camp = this.scene.get('camp') as CampScene;
     if (!camp?.profile) return;
     const p = camp.profile, IW = this.scale.width, IH = this.scale.height, g = this.g, narrow = IW < 700;
-    g.clear(); this.used = 0; this.rowHits = []; this.tabHits = []; this.actHits = [];
+    g.clear(); this.used = 0; this.rowHits = []; this.tabHits = []; this.actHits = []; this.book = null; this.bookClose = null;
     g.fillStyle(0xffaa5a, 0.08).fillRect(0, 0, IW, IH); // warm evening camp tone
     const desktopBar = !touch.enabled && !narrow;
 
@@ -147,11 +151,20 @@ export class CampHudScene extends Phaser.Scene {
       wood(g, x0, barY, w, barH);
       ACTIONS.forEach((a, i) => {
         const x = x0 + 10 + i * (bw + gap), y = barY + 9, on = a.id === 'build' && !!camp.build;
-        woodButton(g, x, y, bw, barH - 18, false, on);
+        if (a.id === 'hike' && !on) greenButton(g, x, y, bw, barH - 18); else woodButton(g, x, y, bw, barH - 18, false, on);
         this.text(a.icon, x + bw / 2, y + 20, 20, '#ffffff', 'center');
         this.text(`${t('ui_' + a.id)} ${a.key}`, x + bw / 2, y + 46, 11.5, on ? TX.woodShadow : TX.cream, 'center', true);
         if (a.id === 'skills' && pts > 0) { badge(g, x + bw - 14, y - 6, 20); this.text(String(pts), x + bw - 4, y + 4, 12, TX.cream, 'center', true, PIXEL_FONT); }
         this.actHits.push({ x, y, w: bw, h: barH - 18, i, code: a.code });
+      });
+      // system buttons: sound, music, back to the title screen
+      const prefs = p as typeof p & { sound?: boolean; music?: boolean };
+      const sys = [{ code: 'KeyM', icon: prefs.sound === false ? '🔇' : '🔊' }, { code: 'KeyN', icon: prefs.music === false ? '🚫' : '🎵' }, { code: 'Escape', icon: '🏠' }];
+      if (x0 + w + sys.length * 52 + 24 < IW) sys.forEach((b, i) => {
+        const x = IW - 14 - (sys.length - i) * 52 + 4, y = IH - 62;
+        woodButton(g, x, y, 46, 46);
+        this.text(b.icon, x + 23, y + 23, 18, TX.cream, 'center', true);
+        this.actHits.push({ x, y, w: 46, h: 46, i: 99 + i, code: b.code });
       });
     }
 
@@ -189,7 +202,9 @@ export class CampHudScene extends Phaser.Scene {
     if (!camp.menu) {
       const cam = camp.cameras.main, sx = (camp.pos.x - cam.worldView.x) * cam.zoom, sy = (camp.pos.y - 30 - cam.worldView.y) * cam.zoom;
       const nt = this.text(nameTag(p), sx, sy, 12, TX.gold, 'center');
-      tag(g, sx - nt.width / 2 - 8, sy - 10, nt.width + 16, 20, 0.8);
+      const pt = touch.enabled && !camp.build ? camp.findTarget() : null, pw2 = pt ? pt.label.length * 9 + 60 : 0;
+      if (pt && Math.abs(sy - (IH - 290 + 18)) < 34 && Math.abs(sx - IW / 2) < (nt.width + pw2) / 2 + 8) nt.setVisible(false);
+      else tag(g, sx - nt.width / 2 - 8, sy - 10, nt.width + 16, 20, 0.8);
     }
 
     if (camp.menu) this.drawMenu(camp, IW, IH);
@@ -201,6 +216,7 @@ export class CampHudScene extends Phaser.Scene {
   private drawMenu(camp: CampScene, IW: number, IH: number): void {
     const m = camp.menu!, rows = camp.menuRows(), g = this.g, p = camp.profile;
     const tab = m.tab ?? 'album';
+    if (m.type === 'journal' && IW >= 760 && IH >= 520) { this.drawBook(camp, IW, IH); return; }
     const title = m.type === 'journal' ? 'menu_journal_' + tab : 'menu_' + m.type;
     const hint = ({ quests: 'menu_hint_q', trails: 'trails_hint', shop: 'menu_hint', cook: 'menu_hint', skills: 'skill_hint',
       journal: tab === 'titles' ? 'titles_hint' : 'journal_hint' } as Record<string, string>)[m.type];
@@ -244,6 +260,87 @@ export class CampHudScene extends Phaser.Scene {
     if (first > 0) this.text('▲', px + pw / 2, top - rh / 2 - 2, 12, TX.inkFaint, 'center');
     if (first + shown < rows.length) this.text('▼', px + pw / 2, top + (shown - 0.5) * rh + 4, 12, TX.inkFaint, 'center');
     this.text(t(hint), IW / 2, py + ph - 20, 12, TX.inkFaint, 'center');
+  }
+
+  /**
+   * Journal as an open book: bookmark tabs on top, two paper pages. Album, passport and medals are cards
+   * in a grid; achievements, titles and stats are ruled lines. The spread shown is the one holding the selection.
+   */
+  private drawBook(camp: CampScene, IW: number, IH: number): void {
+    const m = camp.menu!, rows = camp.menuRows(), g = this.g, p = camp.profile, tab = m.tab ?? 'album';
+    const grid = tab === 'album' || tab === 'passport' || tab === 'medals';
+    const BW = Math.min(1120, IW - 40), BH = Math.min(600, IH - 96), bx = Math.round(IW / 2 - BW / 2), by = Math.max(56, Math.round(IH / 2 - BH / 2 + 20));
+    scrim(g, IW, IH, 0.55);
+
+    // bookmark tabs
+    const tw = Math.min(172, (BW - 100) / JOURNAL_TABS.length), ty = by - 40;
+    JOURNAL_TABS.forEach((id, i) => {
+      const x = bx + 24 + i * (tw + 4), on = id === tab;
+      if (on) { notch(g, x, ty - 4, tw, 48, 3, C.paperEdge); g.fillStyle(C.paper, 1).fillRect(x + 3, ty - 1, tw - 6, 45); }
+      else woodButton(g, x, ty, tw, 40);
+      this.text(t('menu_journal_' + id), x + tw / 2, ty + (on ? 16 : 20), 13, on ? TX.ink : TX.cream, 'center', true).setCrop(0, 0, tw + 40, 30);
+      this.tabHits.push({ x, y: ty - 4, w: tw, h: 44, i, tab: id });
+    });
+    this.book = { x: bx, y: ty - 4, w: BW, h: BH + (by - ty) + 4, i: -1 };
+    this.bookClose = { x: bx + BW - 48, y: ty, w: 40, h: 40, i: -1 };
+    woodButton(g, bx + BW - 48, ty, 40, 40);
+    this.text('✕', bx + BW - 28, ty + 20, 16, TX.cream, 'center', true);
+
+    // cover, pages, spine
+    notch(g, bx, by, BW, BH, 6, C.woodDeep);
+    g.fillStyle(0x6b3f1f, 1).fillRect(bx + 6, by + 6, BW - 12, BH - 12);
+    const pw = (BW - 40) / 2, lx = bx + 16, rx = bx + BW / 2 + 4, py = by + 16, ph = BH - 32;
+    for (const x of [lx, rx]) {
+      g.fillStyle(C.paperShade, 1).fillRect(Math.round(x), py, Math.round(pw), ph);
+      g.fillStyle(C.paper, 1).fillRect(Math.round(x), py, Math.round(pw), ph - 5);
+    }
+    g.fillStyle(C.paperShade, 1).fillRect(Math.round(lx + pw - 12), py, 12, ph - 5).fillRect(Math.round(rx), py, 12, ph - 5);
+    g.fillStyle(C.paperEdge, 1).fillRect(Math.round(bx + BW / 2 - 4), by + 10, 8, BH - 20);
+
+    // page headers
+    const title = t('menu_journal_' + tab);
+    this.text(title, lx + 24, py + 30, 20, TX.ink, 'left', true);
+    if (tab === 'album') this.text(t('album_count', { n: ((p as any).album ?? []).length, m: Object.keys(PHOTO_EXP).length }), lx + pw - 24, py + 30, 13, TX.inkFaint, 'right', true);
+    const bodyTop = py + 60, bodyH = ph - 60 - 34;
+
+    // how many entries fit on one page
+    const cols = 3, cardH = 96, gap = 10, cardW = (pw - 48 - (cols - 1) * gap) / cols;
+    const perPage = grid ? cols * Math.max(1, Math.floor((bodyH + gap) / (cardH + gap))) : Math.max(1, Math.floor(bodyH / 50));
+    const spread = Math.floor(m.sel / (2 * perPage)), first = spread * 2 * perPage, spreads = Math.max(1, Math.ceil(rows.length / (2 * perPage)));
+    this.text(t('ui_book_page', { n: spread + 1, m: spreads }), rx + pw - 24, py + 30, 13, TX.inkFaint, 'right', true);
+
+    for (let k = 0; k < 2 * perPage && first + k < rows.length; k++) {
+      const i = first + k, r = rows[i], page = k < perPage ? 0 : 1, j = k % perPage, ox = (page ? rx : lx) + 24, sel = m.sel === i;
+      const a = r.enabled ? 1 : 0.45;
+      if (grid) {
+        const cx = ox + (j % cols) * (cardW + gap), cy = bodyTop + Math.floor(j / cols) * (cardH + gap);
+        notch(g, cx, cy, cardW, cardH, 3, sel ? C.gold : r.enabled ? C.paperEdge : C.paperLine);
+        g.fillStyle(r.enabled ? C.paperLight : C.paperShade, 1).fillRect(Math.round(cx + 3), Math.round(cy + 3), Math.round(cardW - 6), cardH - 6);
+        if (r.medal) this.medal(cx + cardW / 2, cy + 28, r.medal.color, r.medal.ring, r.medal.got);
+        this.text(r.icon, cx + cardW / 2, cy + 28, r.medal ? 14 : 24, '#ffffff', 'center').setAlpha(r.medal && !r.medal.got ? 0.35 : a);
+        this.text(r.label, cx + cardW / 2, cy + 60, 12.5, TX.ink, 'center', true).setAlpha(a).setCrop(0, 0, cardW - 8, 30);
+        this.text(r.right, cx + cardW / 2, cy + 80, 11, TX.green, 'center', true).setAlpha(a).setCrop(0, 0, cardW - 8, 30);
+        this.rowHits.push({ x: cx, y: cy, w: cardW, h: cardH, i });
+      } else {
+        const y = bodyTop + j * 50 + 24, w = pw - 48;
+        if (sel) { notch(g, ox - 6, y - 23, w + 12, 46, 3, C.gold); g.fillStyle(C.paperLight, 1).fillRect(ox - 3, y - 20, w + 6, 40); }
+        else rule(g, ox, y + 23, w);
+        if (r.medal) this.medal(ox + 14, y, r.medal.color, r.medal.ring, r.medal.got);
+        this.text(r.icon, ox + 14, y, r.medal ? 14 : 20, '#ffffff', 'center').setAlpha(a);
+        const rt = this.text(r.right, ox + w, y, 12.5, TX.green, 'right', true).setAlpha(a);
+        this.text(r.label, ox + 36, y - 9, 14, TX.ink, 'left', sel).setAlpha(a).setCrop(0, 0, w - 44 - rt.width, 30);
+        this.text(r.sub, ox + 36, y + 11, 11, TX.inkSoft).setAlpha(a).setCrop(0, 0, w - 44 - rt.width, 30);
+        this.rowHits.push({ x: ox - 6, y: y - 23, w: w + 12, h: 46, i });
+      }
+    }
+
+    // the selected entry's details (grid cards only show a short label)
+    if (grid && rows[m.sel]) {
+      const r = rows[m.sel], dy = py + ph - 26;
+      this.text(r.label + (r.sub ? '  ·  ' + r.sub : ''), lx + 24, dy, 12, TX.inkSoft).setCrop(0, 0, pw * 2 - 40, 30);
+    }
+    const hint = tab === 'titles' ? 'titles_hint' : 'journal_hint';
+    this.text(t(hint), IW / 2, by + BH + 16, 12, TX.creamDim, 'center');
   }
 
   /** Round medal: ribbon, colored disc and ring; greyed out until earned. */

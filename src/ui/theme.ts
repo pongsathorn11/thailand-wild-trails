@@ -123,3 +123,24 @@ export function rule(g: G, x: number, y: number, w: number): void {
 export function scrim(g: G, w: number, h: number, a = 0.5): void {
   g.fillStyle(0x0f170c, a).fillRect(0, 0, w, h);
 }
+
+/** 7×7 pixel icons for the stat rows ('#' = filled). */
+export const STAT_ICONS: Record<'stamina' | 'hunger' | 'thirst' | 'warmth', string[]> = {
+  stamina: ['...##..', '..##...', '.####..', '..####.', '...##..', '..##...', '.##....'],
+  hunger: ['.#..#..', '..#..#.', '.......', '#######', '#######', '.#####.', '..###..'],
+  thirst: ['...#...', '...#...', '..###..', '.#####.', '.#####.', '.#####.', '..###..'],
+  warmth: ['...##..', '...##..', '...##..', '...##..', '..####.', '..####.', '...##..'],
+};
+
+/** Draws a bitmap icon with a 1-pixel dark outline so it reads on paper and wood. */
+export function pixelIcon(g: G, rows: string[], x: number, y: number, px: number, color: number, outline: number = C.woodDark): void {
+  x = Math.round(x); y = Math.round(y);
+  const on = (r: number, c: number) => rows[r]?.[c] === '#';
+  g.fillStyle(outline, 1);
+  rows.forEach((row, r) => [...row].forEach((ch, c) => {
+    if (ch !== '#') return;
+    for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (!on(r + dr, c + dc)) g.fillRect(x + (c + dc) * px, y + (r + dr) * px, px, px);
+  }));
+  g.fillStyle(color, 1);
+  rows.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') g.fillRect(x + c * px, y + r * px, px, px); }));
+}

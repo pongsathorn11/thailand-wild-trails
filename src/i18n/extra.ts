@@ -5,10 +5,10 @@
 export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
   th: {
     port_restart: 'Enter กลับแคมป์',
-    port_camp_controls: 'WASD เดิน · Shift วิ่ง · E โต้ตอบ · Q เปลี่ยนเมล็ด · B โหมดตกแต่ง · K ทักษะ · J สมุดบันทึก · O ออนไลน์ · M เสียง · N เพลง · Esc หน้าแรก',
+    port_camp_controls: 'WASD เดิน · Shift วิ่ง · E โต้ตอบ · T เดินป่า · Q เปลี่ยนเมล็ด · B โหมดตกแต่ง · K ทักษะ · J สมุดบันทึก · O ออนไลน์ · M เสียง · N เพลง · Esc หน้าแรก',
     port_go: 'ออกเดินป่า ›',
-    pack_keys: '↑↓ เลือก · ←→ จำนวน · Enter ออกเดิน · Esc กลับแคมป์ · คลิก ◀ ▶ ได้',
-    controls: 'WASD/ลูกศร เดิน · Shift วิ่ง · E โต้ตอบ · 1–9 0 - = ใช้ของในเป้ (หรือคลิกช่อง) · M เสียง · N เพลง',
+    pack_keys: '↑↓ เลือก · ←→ จำนวน · Q/E เปลี่ยนเส้นทาง · Enter ออกเดิน · Esc กลับแคมป์ · คลิกได้ทุกปุ่ม',
+    controls: 'WASD/ลูกศร เดิน · Shift วิ่ง · E โต้ตอบ · 1–9 0 - = ใช้ของในเป้ (หรือคลิกช่อง) · P หยุด · M เสียง · N เพลง',
     // online (M8)
     on_title: '☁️ ออนไลน์', on_tab_account: 'บัญชี', on_tab_board: '🏆 อันดับ',
     on_off: 'ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ เล่นแบบออฟไลน์ได้ตามปกติ', on_signedOut: 'ยังไม่ได้เข้าสู่ระบบ · เซฟอยู่ในเครื่องนี้เท่านั้น',
@@ -29,14 +29,16 @@ export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
     ui_level: 'เลเวล', ui_seed: 'เมล็ด', ui_build: 'ตกแต่ง', ui_skills: 'ทักษะ', ui_journal: 'สมุด', ui_online: 'ออนไลน์', ui_store: 'คลังแคมป์',
     ui_season_left: 'อีก {n} วันเปลี่ยนฤดู', ui_quest_new: 'ภารกิจใหม่เมื่อนอนในเต็นท์', ui_forecast: 'พยากรณ์อากาศ', ui_trail: 'เส้นทาง',
     ui_item: 'ของ', ui_qty: 'จำนวน', ui_kg: 'น้ำหนัก', ui_slots: 'ช่องในเป้', ui_over_tip: 'เกิน {n} กก. จะเดินช้าลงและเหนื่อยเร็วขึ้น', ui_tagline: 'เดินป่า ตั้งแคมป์ ในอุทยานแห่งชาติไทย',
+    ui_hike: 'เดินป่า', ui_explored: 'สำรวจ {n}%', ui_paused: 'พักก่อน', ui_paused_sub: 'เวลา ค่าสถานะ และเหตุการณ์หยุดไว้ทั้งหมด', ui_resume: 'เล่นต่อ (P)',
+    ui_pause_coop: 'เดินด้วยกันอยู่ หยุดเกมไม่ได้', ui_sound: 'เสียง', ui_music: 'เพลง', ui_pause: 'หยุด', ui_home: 'หน้าแรก', ui_book_page: 'หน้า {n}/{m}',
     on_rank: 'อันดับ', on_name: 'ชื่อ', on_time: 'เวลา', on_close: 'ปิด', on_loading: 'กำลังโหลด…', on_hiker: 'นักเดินทาง',
   },
   en: {
     port_restart: 'Enter return to camp',
-    port_camp_controls: 'WASD walk · Shift run · E interact · Q change seed · B decorate mode · K skills · J journal · O online · M sound · N music · Esc title',
+    port_camp_controls: 'WASD walk · Shift run · E interact · T hike · Q change seed · B decorate mode · K skills · J journal · O online · M sound · N music · Esc title',
     port_go: 'Start hiking ›',
-    pack_keys: '↑↓ select · ←→ amount · Enter go · Esc back to camp · or click ◀ ▶',
-    controls: 'WASD/Arrows walk · Shift run · E interact · 1–9 0 - = use backpack item (or click a slot) · M sound · N music',
+    pack_keys: '↑↓ select · ←→ amount · Q/E change trail · Enter go · Esc back to camp · every button is clickable',
+    controls: 'WASD/Arrows walk · Shift run · E interact · 1–9 0 - = use backpack item (or click a slot) · P pause · M sound · N music',
     on_title: '☁️ Online', on_tab_account: 'Account', on_tab_board: '🏆 Leaderboard',
     on_off: 'No server configured. Offline play works as usual.', on_signedOut: 'Not signed in · saves stay on this device',
     on_signedIn: 'Signed in: {e}', on_guest: 'Guest (save tied to this browser)',
@@ -55,6 +57,8 @@ export const EXTRA: Record<'th' | 'en', Record<string, string>> = {
     ui_level: 'LEVEL', ui_seed: 'Seed', ui_build: 'Decorate', ui_skills: 'Skills', ui_journal: 'Journal', ui_online: 'Online', ui_store: 'Camp storage',
     ui_season_left: '{n} days until the season changes', ui_quest_new: 'New quests when you sleep in the tent', ui_forecast: 'Forecast', ui_trail: 'Trail',
     ui_item: 'Item', ui_qty: 'Amount', ui_kg: 'Weight', ui_slots: 'Backpack slots', ui_over_tip: 'Over {n} kg you walk slower and tire faster', ui_tagline: "Hike and camp in Thailand's national parks",
+    ui_hike: 'Hike', ui_explored: 'Explored {n}%', ui_paused: 'Paused', ui_paused_sub: 'Time, body stats and events are on hold', ui_resume: 'Resume (P)',
+    ui_pause_coop: "Can't pause while hiking together", ui_sound: 'Sound', ui_music: 'Music', ui_pause: 'Pause', ui_home: 'Title', ui_book_page: 'Page {n}/{m}',
     on_rank: 'Rank', on_name: 'Name', on_time: 'Time', on_close: 'Close', on_loading: 'Loading…', on_hiker: 'Hiker',
   },
 };

@@ -11,6 +11,7 @@ import { rollWeather } from './HikeScene';
 import { CoopSession, coopPlan } from '../net/coop';
 import { cloud } from '../net/cloud';
 import { displayName } from '../core/cloud';
+import { cycleTrail } from '../core/camp';
 import { bar, C, FONT, greenButton, notch, paper, PIXEL_FONT, rule, slot, tag, TX, wood, woodButton } from '../ui/theme';
 
 interface Hit { x: number; y: number; w: number; h: number; fn: () => void }
@@ -57,6 +58,13 @@ export class PackScene extends Phaser.Scene {
     saveProfile(this.profile);
   }
 
+  /** ◀ ▶ on the trail card (or Q / E): switch to another unlocked trail and roll its forecast. */
+  private switchTrail(dir: 1 | -1): void {
+    const id = cycleTrail(this.profile, this.trail.id, dir);
+    if (id === this.trail.id) { audio.sfx('error'); return; }
+    this.trail = trailById(id)!; this.weather = rollWeather(this.trail); audio.sfx('blip');
+  }
+
   private coopMsg = '';
   private joining = false;
   private go(): void {
@@ -79,6 +87,8 @@ export class PackScene extends Phaser.Scene {
     if (code === 'ArrowDown' || code === 'KeyS') this.row = (this.row + 1) % n;
     if (code === 'ArrowRight' || code === 'KeyD') this.change(ids[this.row], 1);
     if (code === 'ArrowLeft' || code === 'KeyA') this.change(ids[this.row], -1);
+    if (code === 'KeyQ') this.switchTrail(-1);
+    if (code === 'KeyE') this.switchTrail(1);
     if (code === 'Escape') this.scene.start('camp');
     if (code === 'Enter' || code === 'Space') this.go();
   }
@@ -172,7 +182,8 @@ export class PackScene extends Phaser.Scene {
     if (wide) {
       wood(g, x, y, w, 104);
       this.text(t('ui_trail'), x + 16, y + 20, 11.5, TX.creamDim);
-      this.sign(t(this.trail.trailKey), x + w / 2, y + 48, 15, TX.cream, 'center').setWordWrapWidth(w - 32, true).setAlign('center');
+      this.sign(t(this.trail.trailKey), x + w / 2, y + 48, 15, TX.cream, 'center').setWordWrapWidth(w - 100, true).setAlign('center');
+      this.arrows(x + 10, x + w - 44, y + 32);
       this.text(t(this.trail.parkKey), x + w / 2, y + 80, 11.5, TX.creamDim, 'center').setCrop(0, 0, w - 24, 30);
       paper(g, x, y + 116, w, 140);
       this.text(t('ui_forecast'), x + 18, y + 136, 11.5, TX.inkFaint);
@@ -183,9 +194,18 @@ export class PackScene extends Phaser.Scene {
       this.text(t('tip_' + this.weather), x + 18, y + 226, 12, TX.inkSoft).setWordWrapWidth(w - 36, true).setOrigin(0, 0.5);
     } else {
       wood(g, x, y, w, h);
-      this.sign(t(this.trail.trailKey), x + 14, y + 22, 14).setCrop(0, 0, w - 28, 30);
-      this.text(`${icon} ${t('w_' + this.weather)} · ${t('tip_' + this.weather)}`, x + 14, y + 44, 11.5, TX.sky).setCrop(0, 0, w - 28, 30);
+      this.sign(t(this.trail.trailKey), x + 14, y + 22, 14).setCrop(0, 0, w - 112, 30);
+      this.text(`${icon} ${t('w_' + this.weather)} · ${t('tip_' + this.weather)}`, x + 14, y + 44, 11.5, TX.sky).setCrop(0, 0, w - 112, 30);
+      this.arrows(x + w - 86, x + w - 46, y + 15);
     }
+  }
+
+  private arrows(lx: number, rx: number, y: number): void {
+    const one = cycleTrail(this.profile, this.trail.id, 1) === this.trail.id;
+    woodButton(this.g, lx, y, 34, 34, one); this.text('◀', lx + 17, y + 17, 13, one ? '#7a6a50' : TX.cream, 'center', true);
+    woodButton(this.g, rx, y, 34, 34, one); this.text('▶', rx + 17, y + 17, 13, one ? '#7a6a50' : TX.cream, 'center', true);
+    this.hit(lx - 4, y - 4, 42, 42, () => this.switchTrail(-1));
+    this.hit(rx - 4, y - 4, 42, 42, () => this.switchTrail(1));
   }
 
   /** Weight bar and the 12 backpack slots as a row of blocks. */

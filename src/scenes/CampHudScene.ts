@@ -22,6 +22,7 @@ const ACTIONS = [
   { id: 'build', icon: '🔨', key: 'B', code: 'KeyB' },
   { id: 'skills', icon: '⭐', key: 'K', code: 'KeyK' },
   { id: 'journal', icon: '📖', key: 'J', code: 'KeyJ' },
+  { id: 'hub', icon: '🏞️', key: 'H', code: 'KeyH' },
   { id: 'online', icon: '☁️', key: 'O', code: 'KeyO' },
 ] as const;
 

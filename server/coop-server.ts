@@ -21,6 +21,8 @@ import {
 import type { Hiker } from '../src/core/hiker';
 import { buildWorld, type WorldMap } from '../src/core/world';
 import { trailById, type WeatherId } from '../src/data/trails';
+import { parseHubMsg } from '../src/core/hub';
+import { hubJoin, hubLeave, hubMessage, hubStats } from './hub-server';
 
 const PORT = Number(process.env.COOP_PORT || process.env.PORT || 2567);
 const ALLOW_GUESTS = process.env.COOP_ALLOW_GUESTS === '1';
@@ -81,7 +83,8 @@ function leave(room: Room, p: Player): void {
 const http = createServer((_req, res) => {
   // health check for hosting platforms
   res.writeHead(200, { 'content-type': 'text/plain' });
-  res.end(`thailand-wild-trails co-op · rooms ${rooms.size}\n`);
+  const h = hubStats();
+  res.end(`thailand-wild-trails co-op · rooms ${rooms.size} · hub ${h.hikers} in ${h.plazas} plazas, ${h.parties} parties\n`);
 });
 
 const wss = new WebSocketServer({
@@ -91,19 +94,40 @@ const wss = new WebSocketServer({
 
 wss.on('connection', (ws) => {
   let room: Room | null = null, me: Player | null = null, joining = false;
-  const kick = setTimeout(() => { if (!me) ws.close(4000, 'join timeout'); }, JOIN_TIMEOUT_MS);
+  /** Set once this connection is in the Social Hub (a hub connection never joins a co-op room). */
+  let hubId: string | null = null, hubMsgs = 0, hubWindow = 0;
+  const kick = setTimeout(() => { if (!me && !hubId) ws.close(4000, 'join timeout'); }, JOIN_TIMEOUT_MS);
   (ws as WebSocket & { alive?: boolean }).alive = true;
   ws.on('pong', () => { (ws as WebSocket & { alive?: boolean }).alive = true; });
 
   ws.on('message', async (data) => {
     // flood guard
     const now = Date.now();
+    if (hubId) {
+      if (now - hubWindow > 1000) { hubWindow = now; hubMsgs = 0; }
+      if (++hubMsgs > MAX_MSGS_PER_SEC) return;
+      const hm = parseHubMsg(data.toString());
+      if (hm && hm.t !== 'hub_join') hubMessage(hubId, hm);
+      return;
+    }
     if (me) {
       if (now - me.msgWindow > 1000) { me.msgWindow = now; me.msgs = 0; }
       if (++me.msgs > MAX_MSGS_PER_SEC) return;
     }
     const m = parseClientMsg(data.toString());
-    if (!m) return;
+    if (!m) {
+      // the first message may instead ask to enter the Social Hub
+      const hm = !me && !joining ? parseHubMsg(data.toString()) : null;
+      if (hm?.t !== 'hub_join') return;
+      joining = true;
+      const userId = await userFromToken(hm.token);
+      if (!userId && !ALLOW_GUESTS) { send(ws, { t: 'error', code: 'auth' }); ws.close(4001, 'auth'); return; }
+      if (ws.readyState !== ws.OPEN) return;
+      hubId = hubJoin(ws, hm, userId);
+      clearTimeout(kick);
+      log(`hub join ${hm.name}${userId ? '' : ' (guest)'} · ${hubStats().hikers} in hub`);
+      return;
+    }
 
     if (m.t === 'join') {
       if (me || joining) return;
@@ -134,7 +158,7 @@ wss.on('connection', (ws) => {
     } else if (m.t === 'chat') broadcast(room, { t: 'emote', id: me.id, emote: m.emote });
   });
 
-  ws.on('close', () => { clearTimeout(kick); if (room && me) leave(room, me); });
+  ws.on('close', () => { clearTimeout(kick); if (room && me) leave(room, me); if (hubId) { hubLeave(hubId); hubId = null; } });
   ws.on('error', () => ws.close());
 });
 

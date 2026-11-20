@@ -10,6 +10,7 @@ import { t } from '../i18n';
 import { hitButton, layoutButtons, STICK_RADIUS, stickDirs, touch, vkeys, type TouchButton } from '../input/touch';
 import type { HikeScene } from './HikeScene';
 import type { CampScene } from './CampScene';
+import type { HubScene } from './HubScene';
 import { C, FONT, TX, woodButton } from '../ui/theme';
 
 type Prefs = Profile & { sound?: boolean; music?: boolean };
@@ -63,17 +64,18 @@ export class SystemScene extends Phaser.Scene {
     p[k] = p[k] === false;
     saveProfile(p); this.syncPrefs();
     const msg = k === 'sound' ? (p.sound ? '🔊' : '🔇') : t(p.music ? 'msg_musicOn' : 'msg_musicOff');
-    for (const key of ['hike', 'camp']) { const s = this.scene.get(key) as unknown as { toast?: (m: string) => void }; if (this.scene.isActive(key) && s.toast) s.toast(msg); }
+    for (const key of ['hike', 'camp', 'hub']) { const s = this.scene.get(key) as unknown as { toast?: (m: string) => void }; if (this.scene.isActive(key) && s.toast) s.toast(msg); }
     if (p[k] !== false) audio.sfx('blip');
   }
 
   // ---------- which screen is showing ----------
   private screen(): Screen {
-    for (const k of ['hike', 'pack', 'camp', 'title'] as const) if (this.scene.isActive(k)) return k;
+    for (const k of ['hike', 'pack', 'camp', 'hub', 'title'] as const) if (this.scene.isActive(k)) return k;
     return 'none';
   }
   private get hike(): HikeScene { return this.scene.get('hike') as HikeScene; }
   private get camp(): CampScene { return this.scene.get('camp') as CampScene; }
+  private get hub(): HubScene { return this.scene.get('hub') as HubScene; }
 
   // ---------- touch input ----------
   private press(code: string): void { window.dispatchEvent(new KeyboardEvent('keydown', { code })); }
@@ -132,10 +134,10 @@ export class SystemScene extends Phaser.Scene {
     // touch layout for this frame
     const IW = this.scale.width, IH = this.scale.height, g = this.g;
     g.clear(); this.used = 0;
-    const menu = (screen === 'camp' && !!this.camp.menu) || (screen === 'hike' && !!this.hike.journal), build = screen === 'camp' && !!this.camp.build;
+    const menu = (screen === 'camp' && !!this.camp.menu) || (screen === 'hike' && !!this.hike.journal) || (screen === 'hub' && !!this.hub.menu), build = screen === 'camp' && !!this.camp.build;
     const finished = hikeOn && this.hike.finished;
     touch.buttons = touch.enabled && !finished ? layoutButtons({ screen, menu, build, sound: p.sound !== false, music: p.music !== false, soundY: screen === 'title' ? (this.scene.get('title') as unknown as { soundY: number }).soundY || undefined : undefined }, IW, IH) : [];
-    const walk = touch.enabled && ((hikeOn && !finished && !this.hike.journal && !this.hike.bigMap) || (screen === 'camp' && !menu));
+    const walk = touch.enabled && ((hikeOn && !finished && !this.hike.journal && !this.hike.bigMap) || (screen === 'camp' && !menu) || (screen === 'hub' && !menu && this.hub.status === 'live'));
     const hb = (this.scene.get('hud') as unknown as { hotbar?: { y: number } }).hotbar;
     const barY = screen === 'hike' && hb?.y ? hb.y - 8 : IH;
     touch.stickZone = walk ? (x, y) => x < IW * 0.55 && y > 70 && y < barY : null;
@@ -160,6 +162,7 @@ export class SystemScene extends Phaser.Scene {
       gibbon = h.trail.ambient === 'gibbon' && !night;
       crickets = night;
     } else if (screen === 'camp' || screen === 'pack') { lv.fire = 0.07; birds = 0.2; }
+    else if (screen === 'hub') { lv.fire = 0.05; birds = 0.3; }
     else if (screen === 'title') birds = 0.15;
     audio.ambience(lv, { birds, gibbon, crickets });
   }

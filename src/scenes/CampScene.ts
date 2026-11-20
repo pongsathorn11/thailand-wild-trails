@@ -20,6 +20,7 @@ import { progressMessages } from './progressText';
 import { audio } from '../audio/audio';
 import { onlinePanelOpen, openOnlinePanel } from '../ui/onlinePanel';
 import { vkeys } from '../input/touch';
+import { COOP_URL } from '../net/coop';
 
 
 const TS = CONFIG.TILE;
@@ -283,6 +284,13 @@ export class CampScene extends Phaser.Scene {
     this.rebuildFurniture(); this.save();
   }
 
+  /** The Social Hub (H): the shared plaza on the game server. */
+  goHub(): void {
+    if (!COOP_URL) { this.toast(t('coop_err_no_server')); audio.sfx('error'); return; }
+    audio.sfx('select'); this.save();
+    this.scene.start('hub');
+  }
+
   /** Trail picker (the trail sign, the T key or the Hike button). */
   openTrails(): void { this.build = null; this.menu = { type: 'trails', sel: Math.max(0, TRAILS.findIndex((x) => x.id === this.profile.lastTrail)) }; }
 
@@ -305,6 +313,7 @@ export class CampScene extends Phaser.Scene {
       return;
     }
     if (code === 'KeyT') { audio.sfx('select'); this.openTrails(); return; }
+    if (code === 'KeyH') { this.goHub(); return; }
     if (code === 'KeyK') { this.build = null; this.menu = { type: 'skills', sel: 0 }; return; }
     if (code === 'KeyJ') { this.build = null; this.menu = { type: 'journal', sel: 0, tab: 'album' }; return; }
     if (code === 'KeyB') { this.build = this.build ? null : { sel: 0 }; if (this.build && !ownedFurniture(this.profile).length && !this.camp.placed.length) this.toast(t('build_none')); return; }

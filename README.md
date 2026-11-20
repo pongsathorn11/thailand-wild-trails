@@ -74,6 +74,7 @@ Rules of the codebase (from the original brief, section 22):
 | M7 Polish | touch controls, sound effects, generative music, phone layout | ✅ |
 | M8a Online | Supabase accounts (email + password, guest), cloud save that never loses progress, per-trail leaderboard written only through a validating database function | ✅ |
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
+| M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
 | M9 Hosting | game on GitHub Pages (auto-deploy on push, tests run first); co-op server on Render (blueprint in `render.yaml`, Singapore, origin allow-list) | ✅ game live · server: connect once in Render |
 
@@ -129,6 +130,22 @@ same trail and starts hiking. Up to 4 per room; the room picks the weather for e
 - Body stats (stamina, food, warmth), items, photos and quests stay per player, as in single-player.
 
 `VITE_COOP_URL` in `.env` says where the server is (`ws://localhost:2567` now; `wss://…` once hosted).
+## Social Hub and parties
+
+Press **H** in camp (or the 🏞️ button) to walk to the **Community Plaza**, a shared map on the same game server as co-op.
+Up to 24 hikers per plaza; more open another one.
+
+- **Hikers live:** everyone's chibi, name and title; emotes with **1–4** (👋 📸 ☕ 🚩).
+- **Party board** (or the gathering sign, or **P**): start a party or join an open one. Up to 4 per party.
+  The leader picks the trail (◀ ▶, from trails the leader has unlocked), members press *I'm ready*, the leader presses *Set off!*.
+  Every member then goes to the packing screen for that trail and joins co-op room = party code, so the hike starts together.
+- **Park info centre** (**I**): every trail with its park, region and real distance / elevation (`realData`).
+- The plaza, its stalls and the info hut are game fiction (`src/data/hub.ts`), kept apart from the parks' real data.
+- **Server checks:** clients report their own position 10× a second; the server only accepts moves that a running hiker could
+  make and that don't end in trees, stalls or benches, and snaps cheaters back. Party commands are checked on the server
+  (only the leader changes the trail or sets off; a party never goes over 4). Rules: `src/core/hub.ts` (tested); server: `server/hub-server.ts`.
+- Sign-in works the same as co-op (Supabase token; `COOP_ALLOW_GUESTS=1` for local tests).
+
 ## Hosting
 
 | Part | Where | How it updates |

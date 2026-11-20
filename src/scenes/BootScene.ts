@@ -3,6 +3,7 @@ import { buildTreeSprites, paintMiniSheet, makeCanvas, MINI } from '../gfx/paint
 import { buildProps, type PropArt } from '../gfx/props';
 import { buildTrailArt, fallsFrames, birdFrames, deerFrames } from '../gfx/trailArt';
 import { buildCampArt, campfireFrames } from '../gfx/campArt';
+import { buildHubArt } from '../gfx/hubArt';
 import { loadProfile, type Profile } from '../core/profile';
 import { cloud } from '../net/cloud';
 import { initAuthPage } from '../ui/authPage';
@@ -26,7 +27,7 @@ export class BootScene extends Phaser.Scene {
       this.textures.addCanvas(`tree-${type}-${v}-canopy`, s.canopy);
     }));
     const anchors: Record<string, [number, number]> = {};
-    for (const [key, art] of Object.entries({ ...buildProps(), ...buildTrailArt(), ...buildCampArt() })) {
+    for (const [key, art] of Object.entries({ ...buildProps(), ...buildTrailArt(), ...buildCampArt(), ...buildHubArt() })) {
       this.textures.addCanvas(`prop-${key}`, art.canvas); anchors[key] = [art.ax, art.ay];
     }
     for (const [key, frames] of Object.entries({ campfire: campfireFrames(), falls: fallsFrames(), 'bird-sunbird': birdFrames('sunbird'), 'bird-hornbill': birdFrames('hornbill'), deer: deerFrames() })) {

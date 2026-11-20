@@ -14,10 +14,13 @@ describe('touch controls', () => {
     expect(ids({ screen: 'camp', build: true })).toEqual(expect.arrayContaining(['place', 'pick', 'next', 'bexit']));
     expect(ids({ screen: 'camp', menu: true })).toEqual(['snd', 'mus', 'up', 'down', 'left', 'right', 'ok', 'back']);
     expect(ids({ screen: 'pack' })).toContain('ok');
+    expect(ids({ screen: 'camp' })).toContain('hub');
+    expect(ids({ screen: 'hub' })).toEqual(['snd', 'mus', 'act', 'run', 'party', 'info', 'wave', 'rest', 'home']);
+    expect(ids({ screen: 'hub', menu: true })).toEqual(['snd', 'mus', 'up', 'down', 'left', 'right', 'ok', 'back']);
   });
 
   it('keeps every button on screen on a small phone', () => {
-    for (const v of [view({ screen: 'camp' }), view({ screen: 'camp', build: true }), view({ screen: 'pack' })])
+    for (const v of [view({ screen: 'camp' }), view({ screen: 'camp', build: true }), view({ screen: 'hub' }), view({ screen: 'pack' })])
       for (const b of layoutButtons(v, 320, 568)) {
         expect(b.x - b.r).toBeGreaterThanOrEqual(0); expect(b.x + b.r).toBeLessThanOrEqual(320);
         expect(b.y - b.r).toBeGreaterThanOrEqual(0); expect(b.y + b.r).toBeLessThanOrEqual(568);

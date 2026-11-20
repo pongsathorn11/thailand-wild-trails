@@ -7,6 +7,8 @@ import { CampScene } from './scenes/CampScene';
 import { CampHudScene } from './scenes/CampHudScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SystemScene } from './scenes/SystemScene';
+import { HubScene } from './scenes/HubScene';
+import { HubHudScene } from './scenes/HubHudScene';
 import { audio } from './audio/audio';
 
 const game = new Phaser.Game({
@@ -16,7 +18,7 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [BootScene, TitleScene, CampScene, CampHudScene, PackScene, HikeScene, HudScene, SystemScene],
+  scene: [BootScene, TitleScene, CampScene, CampHudScene, HubScene, HubHudScene, PackScene, HikeScene, HudScene, SystemScene],
 });
 
 // handy in the browser console while developing: __game.scene.getScene('hike')

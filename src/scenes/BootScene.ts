@@ -5,6 +5,7 @@ import { buildTrailArt, fallsFrames, birdFrames, deerFrames } from '../gfx/trail
 import { buildCampArt, campfireFrames } from '../gfx/campArt';
 import { loadProfile, type Profile } from '../core/profile';
 import { cloud } from '../net/cloud';
+import { initAuthPage } from '../ui/authPage';
 import { installMiniSheet } from '../gfx/sheets';
 import { resolveLook, GUIDE_LOOK } from '../data/looks';
 import { setLang } from '../i18n';
@@ -45,6 +46,7 @@ export class BootScene extends Phaser.Scene {
     const trail = (q && trailById(q)) || (profile.lastTrail && trailById(profile.lastTrail)) || TRAILS[0];
     // ?trail=<id> jumps straight to packing for that trail (handy while testing); otherwise the title screen
     // cloud save: restores a session if there is one; a cloud save that got further replaces this one
+    initAuthPage();
     void cloud.start(() => this.registry.get('profile') as Profile, (p) => {
       this.registry.set('profile', p);
       setLang(p.lang);

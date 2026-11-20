@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { cloud, type BoardRow } from '../net/cloud';
 import { COOP_URL, coopPlan } from '../net/coop';
 import { cleanRoomCode, newRoomCode } from '../core/coop';
+import { authPageOpen, openAuthPage } from './authPage';
 
 const CSS = `
 #twt-online{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(15,23,12,.55);font-family:Mitr,"Noto Sans Thai",Tahoma,sans-serif;color:#3a2414}
@@ -44,7 +45,8 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
   return e;
 };
 
-export const onlinePanelOpen = (): boolean => !!root;
+/** True while the Online panel or the Log in page is open (game keys pause). */
+export const onlinePanelOpen = (): boolean => !!root || authPageOpen();
 
 export function openOnlinePanel(close?: () => void): void {
   if (root) return;
@@ -68,8 +70,6 @@ export function closeOnlinePanel(): void {
 function render(): void {
   if (!root) return;
   const focusId = (document.activeElement as HTMLElement | null)?.id;
-  const keep = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
-  const email = keep('twt-email'), pw = keep('twt-pw');
   const card = el('div', { className: 'card' });
   const close = el('button', { className: 'x', textContent: '✕', title: t('on_close') }); close.onclick = closeOnlinePanel;
   card.append(el('h2', {}, [t('on_title'), close]));
@@ -80,14 +80,14 @@ function render(): void {
     tabs.append(b);
   }
   card.append(tabs);
-  if (tab === 'account') accountView(card, email, pw); else if (tab === 'board') boardView(card); else coopView(card);
+  if (tab === 'account') accountView(card); else if (tab === 'board') boardView(card); else coopView(card);
   root.replaceChildren(card);
   if (focusId) document.getElementById(focusId)?.focus();
 }
 
-function accountView(card: HTMLElement, email: string, pw: string): void {
+function accountView(card: HTMLElement): void {
   if (cloud.status === 'off') { card.append(el('div', { className: 'status', textContent: t('on_off') })); return; }
-  const status = cloud.signedIn ? (cloud.guest ? t('on_guest') : t('on_signedIn', { e: cloud.email ?? '' })) : t('on_signedOut');
+  const status = cloud.signedIn ? (cloud.guest ? t('on_guest') : t('on_signedIn', { e: (cloud.email ?? '') + (cloud.provider === 'google' ? ' (Google)' : '') })) : t('on_signedOut');
   card.append(el('div', { className: 'status', textContent: status }));
   if (cloud.status === 'syncing') card.append(el('div', { className: 'msg', textContent: t('on_syncing') }));
   else if (cloud.lastSync && cloud.signedIn) card.append(el('div', { className: 'msg', textContent: t('on_synced', { t: cloud.lastSync.toLocaleTimeString() }) }));
@@ -99,15 +99,10 @@ function accountView(card: HTMLElement, email: string, pw: string): void {
       busy(el('button', { textContent: t('on_signOut') }), () => cloud.signOut()),
     ]));
   } else {
-    const e = el('input', { id: 'twt-email', type: 'email', autocomplete: 'email', value: email, placeholder: 'you@example.com' });
-    const p = el('input', { id: 'twt-pw', type: 'password', autocomplete: 'current-password', value: pw, minLength: 6 });
-    p.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') void cloud.signIn(e.value, p.value).then(render); });
-    card.append(el('label', { htmlFor: 'twt-email', textContent: t('on_email') }), e, el('label', { htmlFor: 'twt-pw', textContent: t('on_password') }), p);
-    card.append(el('div', { className: 'row' }, [
-      busy(el('button', { className: 'go', textContent: t('on_signIn') }), () => cloud.signIn(e.value, p.value)),
-      busy(el('button', { textContent: t('on_signUp') }), () => cloud.signUp(e.value, p.value)),
-      busy(el('button', { textContent: t('on_guestBtn') }), () => cloud.playAsGuest()),
-    ]));
+    // signing in and registering live on their own page (email, Google, forgotten password)
+    const open = el('button', { className: 'go', textContent: t('auth_open') });
+    open.onclick = () => { const back = onClose; root?.remove(); root = null; cloud.onChange = () => {}; openAuthPage('login', back ?? undefined); };
+    card.append(el('div', { className: 'row' }, [open, busy(el('button', { textContent: t('on_guestBtn') }), () => cloud.playAsGuest())]));
   }
   if (cloud.message) card.append(el('div', { className: 'msg', textContent: cloud.message }));
   card.append(el('div', { className: 'note', textContent: t('on_note') }));

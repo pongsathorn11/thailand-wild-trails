@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { displayName, pickSave, readRemoteSave, saveFitsCloud } from '../core/cloud';
 import { saveListeners, saveProfile, type Profile } from '../core/profile';
 import { t } from '../i18n';
+import { authErrorKey, oauthError, stripOauthError } from '../core/auth';
 
 export type CloudStatus = 'off' | 'signedOut' | 'syncing' | 'synced' | 'error';
 export interface BoardRow { rank: number; display_name: string; best_time_sec: number; is_me: boolean }
@@ -20,6 +21,14 @@ class Cloud {
   status: CloudStatus = this.client ? 'signedOut' : 'off';
   email: string | null = null;
   guest = false;
+  /** 'email', 'google', … for the signed-in user */
+  provider: string | null = null;
+  /** true after INITIAL_SESSION: we know whether a session was restored */
+  ready = false;
+  /** the user came back from a password-reset email and must choose a new password */
+  recovering = false;
+  /** where OAuth and email links return to: this page, without query or hash */
+  readonly home = location.origin + location.pathname;
   lastSync: Date | null = null;
   message = '';
   private userId: string | null = null;
@@ -27,6 +36,8 @@ class Cloud {
   private replaceProfile: (p: Profile) => void = () => {};
   private timer: ReturnType<typeof setTimeout> | null = null;
   private applying = false;
+  /** Auth events (SIGNED_IN, PASSWORD_RECOVERY, …) for screens that open themselves, like the log-in page. */
+  readonly authListeners: ((event: string) => void)[] = [];
   /** UI re-renders when this fires. */
   onChange: () => void = () => {};
 
@@ -35,13 +46,21 @@ class Cloud {
   /** Wires the cloud to the game's profile and restores a previous session if there is one. */
   async start(getProfile: () => Profile, replaceProfile: (p: Profile) => void): Promise<void> {
     this.getProfile = getProfile; this.replaceProfile = replaceProfile;
-    if (!this.client) return;
+    if (!this.client) { this.ready = true; return; }
+    // a failed Google sign-in comes back with ?error=…; show it once and clean the URL
+    const urlErr = oauthError(location.href);
+    if (urlErr) { this.status = 'error'; this.message = t('auth_err_oauth', { m: urlErr }); history.replaceState(null, '', stripOauthError(location.href)); }
     saveListeners.push(() => { if (!this.applying) this.scheduleUpload(); });
     this.client.auth.onAuthStateChange((event, session) => {
       const uid = session?.user.id ?? null, changed = uid !== this.userId;
       this.userId = uid;
       this.email = session?.user.email ?? null;
       this.guest = !!session?.user.is_anonymous;
+      this.provider = (session?.user.app_metadata?.provider as string | undefined) ?? null;
+      if (event === 'INITIAL_SESSION') this.ready = true;
+      if (event === 'PASSWORD_RECOVERY') this.recovering = true;
+      if (event === 'SIGNED_IN' && !urlErr) this.message = '';
+      for (const f of this.authListeners) { try { f(event); } catch { /* listener gone */ } }
       if (!uid) { this.status = 'signedOut'; this.emit(); return; }
       if (changed && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) void this.sync();
       else this.emit();
@@ -51,7 +70,8 @@ class Cloud {
   private emit(): void { try { this.onChange(); } catch { /* UI closed */ } }
   private fail(e: unknown): void {
     this.status = 'error';
-    this.message = t('on_err', { m: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) });
+    const m = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e), key = authErrorKey(m);
+    this.message = key ? t(key) : t('on_err', { m });
     this.emit();
   }
 
@@ -65,9 +85,46 @@ class Cloud {
   async signUp(email: string, password: string): Promise<void> {
     if (!this.client) return;
     this.message = '';
-    const { data, error } = await this.client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: location.origin + location.pathname } });
+    const { data, error } = await this.client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: this.home } });
     if (error) { this.fail(error); return; }
+    // Supabase answers an already-registered address with a user that has no identities (it doesn't reveal accounts)
+    if (data.user && !data.user.identities?.length) { this.message = t('auth_err_exists'); this.status = 'error'; this.emit(); return; }
     if (!data.session) { this.message = t('on_checkMail'); this.emit(); }
+  }
+
+  /** Is the Google provider switched on in the Supabase project? (public settings endpoint) */
+  async googleEnabled(): Promise<boolean> {
+    if (!URL || !KEY) return false;
+    try {
+      const r = await fetch(`${URL}/auth/v1/settings`, { headers: { apikey: KEY } });
+      return !!(await r.json())?.external?.google;
+    } catch { return false; }
+  }
+
+  /** Leaves the game for Google's sign-in page; Supabase brings the player back here signed in. */
+  async signInWithGoogle(): Promise<void> {
+    if (!this.client) return;
+    this.message = '';
+    if (!(await this.googleEnabled())) { this.status = 'error'; this.message = t('auth_err_google_off'); this.emit(); return; }
+    const { error } = await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: this.home, queryParams: { prompt: 'select_account' } } });
+    if (error) this.fail(error);
+  }
+
+  /** Sends a password-reset link; the link opens the game in recovery mode. */
+  async resetPassword(email: string): Promise<void> {
+    if (!this.client) return;
+    this.message = '';
+    const { error } = await this.client.auth.resetPasswordForEmail(email.trim(), { redirectTo: this.home });
+    if (error) this.fail(error); else { this.message = t('auth_reset_sent'); this.emit(); }
+  }
+
+  async updatePassword(password: string): Promise<boolean> {
+    if (!this.client) return false;
+    this.message = '';
+    const { error } = await this.client.auth.updateUser({ password });
+    if (error) { this.fail(error); return false; }
+    this.recovering = false; this.message = t('auth_pw_changed'); this.emit();
+    return true;
   }
   async playAsGuest(): Promise<void> {
     if (!this.client) return;

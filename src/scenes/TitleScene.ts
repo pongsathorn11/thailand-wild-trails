@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { audio } from '../audio/audio';
 import { cloud } from '../net/cloud';
 import { onlinePanelOpen, openOnlinePanel } from '../ui/onlinePanel';
+import { openAuthPage } from '../ui/authPage';
 import { TITLE_SOUND_GAP, touch, touchClaims } from '../input/touch';
 import { levelInfo } from '../core/camp';
 import { cleanName, LOOK_ROWS, lookOf, lookVariant, NAME_MAX, optionCount, setOption, stepOption, TITLE_ROWS, type TitleRow } from '../core/creator';
@@ -91,7 +92,11 @@ export class TitleScene extends Phaser.Scene {
     }
   }
   private change(fn: () => void): void { fn(); saveProfile(this.profile); audio.sfx('blip'); }
-  private openOnline(): void { this.nameInput.blur(); this.nameInput.style.display = 'none'; audio.sfx('select'); openOnlinePanel(); }
+  /** Signed out: the Log in / Register page. Signed in: the Online panel (account, leaderboard, co-op). */
+  private openOnline(): void {
+    this.nameInput.blur(); this.nameInput.style.display = 'none'; audio.sfx('select');
+    if (cloud.status !== 'off' && !cloud.signedIn) openAuthPage('login'); else openOnlinePanel();
+  }
   private toggleLang(): void { const l = getLang() === 'th' ? 'en' : 'th'; setLang(l); this.profile.lang = l; saveProfile(this.profile); }
 
   /** Saves, repaints the in-game sprite sheet for the chosen look and enters camp. */

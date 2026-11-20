@@ -88,11 +88,29 @@ the tables are protected by Row Level Security (see `supabase/migrations/`):
 - `scores`: best time per player per trail. No direct writes; `submit_score()` checks the trail id and the 30 s – 6 h range and keeps the faster time.
 - `get_leaderboard()`: public top 10 (plus your own row), returns names and times only, never user ids.
 
-Press **O** (or the ☁️ chip on the title screen) to open the Online panel. Two settings live in the Supabase dashboard
-(Authentication), not in code:
+### Log in / Register
 
-1. **URL Configuration → Site URL / Redirect URLs**: add where the game runs (e.g. `http://localhost:5173`) so the sign-up confirmation link comes back to the game.
-2. **Sign In / Providers → Allow anonymous sign-ins**: turn on for the "Play as guest" button (it shows a clear message while off).
+`src/ui/authPage.ts` is the account page (form checks in `src/core/auth.ts`, tested). It opens by itself on the first visit
+for players who aren't signed in, from the ☁️ chip on the title screen, and from the Online panel (**O**).
+
+- **Log in** with email + password, or **Log in with Google** (Supabase OAuth; the player leaves for Google and comes back signed in).
+- **Register** with email + password (at least 8 characters, strength meter, confirm field); Supabase emails a confirmation link.
+- **Forgot password** sends a reset link; opening it shows *Set a new password*.
+- **Play without an account** closes the page for good on this device (the save stays local); log in later from ☁️.
+- If Google isn't switched on in Supabase, the button says so instead of sending players to an error page.
+  A failed or cancelled Google sign-in comes back with `?error=…`; the page shows it once and cleans the URL.
+
+Settings that live in the Supabase dashboard (Authentication), not in code:
+
+1. **URL Configuration → Site URL / Redirect URLs**: Site URL `https://pongsathorn11.github.io/thailand-wild-trails/`; add it and
+   `http://localhost:5173/` to Redirect URLs. Google sign-in, confirmation emails and password resets all return there.
+2. **Sign In / Providers → Google** (for "Log in with Google"):
+   - In Google Cloud Console → APIs & Services: set up the OAuth consent screen (External), then Credentials → Create OAuth client ID → *Web application*.
+     Authorized JavaScript origins: `https://pongsathorn11.github.io` and `http://localhost:5173`.
+     Authorized redirect URI: `https://jfheyrdoxvhjhtlpjccv.supabase.co/auth/v1/callback`.
+   - Paste the Client ID and Client Secret into Supabase → Google and enable it. The secret stays in Supabase; it never goes in this repo.
+3. Optional, **Sign In / Providers → Allow anonymous sign-ins** for the "Play as guest" button in the Online panel.
+4. Optional, **Sign In / Providers → Email → Minimum password length** = 8, to match the game's own check.
 
 Leaderboard times are timed by the server: `start_run()` stamps the start when a hike begins and `finish_run()` only accepts a time
 that real time allows (the game clock can run slower than real time, never faster). The old direct `submit_score()` is closed.
@@ -127,6 +145,4 @@ One-time steps in the dashboards (they can't be done from code):
 
 1. **Render:** open https://render.com/deploy?repo=https://github.com/pongsathorn11/thailand-wild-trails, sign in, and approve the blueprint.
    On the free plan the server sleeps after ~15 min without players, so the first co-op join after a pause takes about a minute.
-2. **Supabase → Authentication → URL Configuration:** Site URL `https://pongsathorn11.github.io/thailand-wild-trails/`, and add it
-   (plus `http://localhost:5173` for development) to Redirect URLs, so sign-up confirmation links come back to the game.
-3. Optional, **Supabase → Authentication → Sign In / Providers:** allow anonymous sign-ins for the "Play as guest" button.
+2. **Supabase → Authentication:** URL Configuration and the Google provider, as listed under *Log in / Register* above.

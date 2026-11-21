@@ -77,6 +77,7 @@ Rules of the codebase (from the original brief, section 22):
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
 | M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
 | M11 Visiting camps | camp cards with a 6-character camp code, visit a friend's camp (also offline), guestbook stickers once a day, help water their garden; from the Online panel (Visit tab) or by walking up to someone in the plaza | ✅ |
+| M12 Hiking clubs | start or join a club (name filter, 8 emblems, up to 20 members, open/closed), weekly club points from server-timed hikes only, club ranking | ✅ |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
 | M11 Stories + events | three camp NPCs (ranger Uncle Kham, cook Auntie Daeng, photographer Fah) with 3-chapter storylines, friendship hearts and story titles; seasonal events on the in-game calendar (Sea of Mist Festival, Hiking Festival, Planting Season) with goals, festival stamps, more fog / bonus photo EXP; rules in `src/core/story.ts`, content in `src/data/story.ts`, text in `src/i18n/story.ts` | ✅ |
 | M12 Central + East trails | Khao Yai: Haew Narok walk (Nakhon Nayok side = Central; bridge over Huay Samor Poon, steep steps to the viewpoint, wild elephants seen from afar), Khao Chamao (Rayong, East): 8-tier waterfall with soro brook carp; every region now has a trail; trail ids kept in one database function | ✅ |
@@ -164,6 +165,21 @@ In the plaza, walk up to another hiker and press **E** to go to their camp.
 - Database: `supabase/migrations/0004_camp_visits.sql`. `camp_cards` and `camp_visits` have no direct access for other players;
   `publish_camp()`, `get_camp()`, `leave_visit()` and `take_visits()` are the only way in and never return user ids.
   Rules and card cleaning: `src/core/visit.ts` (tested). Scene: `src/scenes/VisitScene.ts`.
+
+## Hiking clubs (guilds)
+
+Online panel (**O**) → 🏅 *Club*. Start a club (name 3–20 characters, one of 8 emblems) or join one by its 6-character code
+or from the open clubs in the ranking. One club per player, up to 20 members. The leader can stop taking new members;
+when the leader leaves, the longest-standing member leads; the last one out closes the club.
+
+- **Weekly points** come only from hikes the server timed (`runs` accepted by `finish_run()`): 10 points each,
+  at most 3 counted per member per day (Thai time), only after the member joined, reset every Monday.
+  There is nothing to buy or trade, so clubs can't be pay-to-win.
+- **Names** are checked twice (game and database): Thai/English letters, digits, spaces and `. _ - '` only,
+  no duplicates (case, spaces and punctuation ignored) and a list of rude words (in `src/core/guild.ts`; a test keeps
+  the database list the same).
+- Database: `supabase/migrations/0005_guilds.sql`. Tables have no direct access; `create_guild`, `join_guild`, `leave_guild`,
+  `set_guild_open`, `my_guild` and `guild_board` never return user ids.
 
 ## Hosting
 

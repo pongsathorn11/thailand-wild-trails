@@ -10,6 +10,7 @@ import { cloud, type BoardRow } from '../net/cloud';
 import { COOP_URL, coopPlan } from '../net/coop';
 import { cleanRoomCode, newRoomCode } from '../core/coop';
 import { cleanCampCode, guestbook, STICKER_ICON } from '../core/visit';
+import { checkGuildName, cleanGuildCode, EMBLEMS, GUILD_MAX, type GuildRow, type MyGuild } from '../core/guild';
 import { authPageOpen, openAuthPage } from './authPage';
 
 const CSS = `
@@ -38,7 +39,7 @@ const CSS = `
 #twt-online td.num{text-align:right;font-variant-numeric:tabular-nums}
 `;
 
-let root: HTMLDivElement | null = null, tab: 'account' | 'board' | 'coop' | 'visit' = 'account', trailId = TRAILS[0].id, onClose: (() => void) | null = null;
+let root: HTMLDivElement | null = null, tab: 'account' | 'board' | 'coop' | 'visit' | 'guild' = 'account', trailId = TRAILS[0].id, onClose: (() => void) | null = null;
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, kids: (Node | string)[] = []): HTMLElementTagNameMap[K] => {
   const e = Object.assign(document.createElement(tag), props);
@@ -75,13 +76,13 @@ function render(): void {
   const close = el('button', { className: 'x', textContent: '✕', title: t('on_close') }); close.onclick = closeOnlinePanel;
   card.append(el('h2', {}, [t('on_title'), close]));
   const tabs = el('div', { className: 'tabs' });
-  for (const [id, key] of [['account', 'on_tab_account'], ['board', 'on_tab_board'], ['coop', 'coop_tab'], ['visit', 'visit_tab']] as const) {
+  for (const [id, key] of [['account', 'on_tab_account'], ['board', 'on_tab_board'], ['coop', 'coop_tab'], ['visit', 'visit_tab'], ['guild', 'guild_tab']] as const) {
     const b = el('button', { textContent: t(key), className: tab === id ? 'on' : '' });
-    b.onclick = () => { tab = id; render(); };
+    b.onclick = () => { tab = id; guildMsg = ''; render(); };
     tabs.append(b);
   }
   card.append(tabs);
-  if (tab === 'account') accountView(card); else if (tab === 'board') boardView(card); else if (tab === 'visit') visitView(card); else coopView(card);
+  if (tab === 'account') accountView(card); else if (tab === 'board') boardView(card); else if (tab === 'visit') visitView(card); else if (tab === 'guild') guildView(card); else coopView(card);
   root.replaceChildren(card);
   if (focusId) document.getElementById(focusId)?.focus();
 }
@@ -166,6 +167,93 @@ function visitView(card: HTMLElement): void {
     card.append(list);
   }
   card.append(el('div', { className: 'note', textContent: t('visit_how') }));
+}
+
+let guildReq = 0, guildEmblem: string = EMBLEMS[0], guildMsg = '', guildNameDraft = '';
+function guildView(card: HTMLElement): void {
+  if (cloud.status === 'off') { card.append(el('div', { className: 'status', textContent: t('on_off') })); return; }
+  if (!cloud.signedIn) { card.append(el('div', { className: 'status', textContent: t('guild_needSignIn') })); return; }
+  const box = el('div', { className: 'msg', textContent: t('on_loading') });
+  card.append(box);
+  const req = ++guildReq;
+  const act = (b: HTMLButtonElement, fn: () => Promise<string>, okKey?: string) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      const r = await fn();
+      guildMsg = r === 'ok' ? (okKey ? t(okKey) : '') : t('guild_err_' + r);
+      if (r === 'ok') guildNameDraft = '';
+      render();
+    };
+    return b;
+  };
+  Promise.all([cloud.myGuild(), cloud.guildBoard(10)]).then(([mine, board]) => {
+    if (req !== guildReq || !box.isConnected) return;
+    const parts: Node[] = [];
+    if (guildMsg) parts.push(el('div', { className: 'msg', textContent: guildMsg }));
+    if (mine) parts.push(...myGuildView(mine, act));
+    else parts.push(...noGuildView(board, act));
+    parts.push(el('label', { textContent: t('guild_board') }), boardTable(board));
+    parts.push(el('div', { className: 'note', textContent: t('guild_how') }));
+    box.replaceWith(...parts);
+  }).catch((e: Error) => { if (box.isConnected) box.textContent = t('on_err', { m: e.message }); });
+}
+
+type Act = (b: HTMLButtonElement, fn: () => Promise<string>, okKey?: string) => HTMLButtonElement;
+function myGuildView(g: MyGuild, act: Act): Node[] {
+  const out: Node[] = [];
+  out.push(el('div', { className: 'status', textContent: `${g.emblem} ${g.name}` }));
+  out.push(el('div', { className: 'msg', textContent: t('guild_week', { p: g.points, r: g.rank }) }));
+  out.push(el('label', { textContent: t('guild_code_label') }), el('div', { className: 'code', textContent: g.code }));
+  const list = el('table', {});
+  for (const m of g.members) list.append(el('tr', { className: m.isMe ? 'me' : '' }, [
+    el('td', { textContent: m.isLeader ? '👑' : '🥾' }), el('td', { textContent: m.name + (m.isMe ? ` (${t('ui_you')})` : '') }),
+    el('td', { textContent: t('guild_pts', { p: m.points }), className: 'num' }),
+  ]));
+  out.push(el('label', { textContent: t('guild_members', { n: g.members.length, m: GUILD_MAX }) }), list);
+  const row: HTMLButtonElement[] = [];
+  if (g.isLeader) row.push(act(el('button', { textContent: t(g.open ? 'guild_close' : 'guild_open') }), () => cloud.setGuildOpen(!g.open), g.open ? 'guild_closed_ok' : 'guild_opened_ok'));
+  row.push(act(el('button', { textContent: t('guild_leave') }), () => (confirm(t('guild_leave_q', { n: g.name })) ? cloud.leaveGuild() : Promise.resolve('cancel')), 'guild_left_ok'));
+  out.push(el('div', { className: 'row' }, row));
+  return out;
+}
+
+function noGuildView(board: GuildRow[], act: Act): Node[] {
+  const out: Node[] = [el('div', { className: 'status', textContent: t('guild_none') })];
+  // start a club: name + emblem
+  const name = el('input', { id: 'twt-guild-name', maxLength: 20, placeholder: t('guild_name_ph'), autocomplete: 'off', value: guildNameDraft });
+  name.addEventListener('input', () => { guildNameDraft = name.value; });
+  const emblems = el('div', { className: 'row emblems' });
+  for (const e of EMBLEMS) {
+    const b = el('button', { textContent: e, className: e === guildEmblem ? 'on' : '' });
+    b.onclick = () => { guildEmblem = e; for (const x of emblems.children) x.classList.toggle('on', x === b); };
+    emblems.append(b);
+  }
+  const create = act(el('button', { className: 'go', textContent: t('guild_create') }), async () => {
+    const c = checkGuildName(name.value);
+    if ('problem' in c) return c.problem;
+    return cloud.createGuild(c.name, guildEmblem);
+  }, 'guild_created_ok');
+  out.push(el('label', { htmlFor: 'twt-guild-name', textContent: t('guild_create_label') }), name, emblems, el('div', { className: 'row' }, [create]));
+  // join by code, or from the open clubs in the ranking
+  const code = el('input', { id: 'twt-guild-code', className: 'codeIn', maxLength: 7, placeholder: 'ABC234', autocomplete: 'off' });
+  const join = act(el('button', { textContent: t('guild_join') }), async () => { const c = cleanGuildCode(code.value); return c ? cloud.joinGuild(c) : 'badCode'; }, 'guild_joined_ok');
+  out.push(el('label', { htmlFor: 'twt-guild-code', textContent: t('guild_code_in') }), code, el('div', { className: 'row' }, [join]));
+  const open = board.filter((r) => r.code);
+  if (open.length) {
+    const row = el('div', { className: 'row' });
+    for (const r of open.slice(0, 6)) row.append(act(el('button', { textContent: `${r.emblem} ${r.name} (${r.members}/${GUILD_MAX})` }), () => cloud.joinGuild(r.code!), 'guild_joined_ok'));
+    out.push(el('label', { textContent: t('guild_open_list') }), row);
+  }
+  return out;
+}
+
+function boardTable(rows: GuildRow[]): HTMLElement {
+  if (!rows.length) return el('div', { className: 'note', textContent: t('guild_board_empty') });
+  const table = el('table', {}, [el('tr', {}, [el('th', { textContent: t('on_rank') }), el('th', { textContent: t('guild_name') }), el('th', { textContent: t('guild_points'), className: 'num' })])]);
+  for (const r of rows) table.append(el('tr', { className: r.isMine ? 'me' : '' }, [
+    el('td', { textContent: `#${r.rank}` }), el('td', { textContent: `${r.emblem} ${r.name} · ${r.members}` }), el('td', { textContent: String(r.points), className: 'num' }),
+  ]));
+  return table;
 }
 
 function coopView(card: HTMLElement): void {

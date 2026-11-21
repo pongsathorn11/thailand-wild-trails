@@ -8,6 +8,7 @@ import { displayName, pickSave, readRemoteSave, saveFitsCloud } from '../core/cl
 import { saveListeners, saveProfile, type Profile } from '../core/profile';
 import { t } from '../i18n';
 import { authErrorKey, oauthError, stripOauthError } from '../core/auth';
+import { isEmblem, type GuildRow, type MyGuild } from '../core/guild';
 import { campCard, cleanCampCard, isSticker, type CampCard, type Sticker, type Visit } from '../core/visit';
 
 export type CloudStatus = 'off' | 'signedOut' | 'syncing' | 'synced' | 'error';
@@ -242,6 +243,38 @@ class Cloud {
     if (error || !Array.isArray(data)) return [];
     return (data as { visitor_name: string; sticker: string; watered: boolean; created_at: string }[])
       .filter((v) => isSticker(v.sticker)).map((v) => ({ name: v.visitor_name, sticker: v.sticker as Sticker, watered: !!v.watered, at: v.created_at }));
+  }
+
+  // ---------- hiking clubs ----------
+  private get myName(): string { return displayName(this.getProfile(), t('on_hiker')); }
+  private async rpcText(fn: string, args: Record<string, unknown> = {}): Promise<string> {
+    if (!this.client || !this.userId) return 'auth';
+    const { data, error } = await this.client.rpc(fn, args);
+    return error ? 'error' : String(data);
+  }
+  /** 'ok' | 'already' | 'short' | 'long' | 'chars' | 'banned' | 'taken' | 'emblem' | 'error' | 'auth' */
+  async createGuild(name: string, emblem: string): Promise<string> {
+    if (!this.client || !this.userId) return 'auth';
+    const { data, error } = await this.client.rpc('create_guild', { p_name: name, p_emblem: emblem, p_display: this.myName });
+    return error ? 'error' : String((data as { result: string }[] | null)?.[0]?.result ?? 'error');
+  }
+  /** 'ok' | 'none' | 'closed' | 'full' | 'already' | 'error' | 'auth' */
+  joinGuild(code: string): Promise<string> { return this.rpcText('join_guild', { p_code: code, p_display: this.myName }); }
+  leaveGuild(): Promise<string> { return this.rpcText('leave_guild'); }
+  setGuildOpen(open: boolean): Promise<string> { return this.rpcText('set_guild_open', { p_open: open }); }
+  async myGuild(): Promise<MyGuild | null> {
+    if (!this.client || !this.userId) return null;
+    const { data, error } = await this.client.rpc('my_guild', { p_display: this.myName });
+    if (error) throw error;
+    const g = data as MyGuild | null;
+    return g && isEmblem(g.emblem) ? g : g && { ...g, emblem: '🌲' };
+  }
+  async guildBoard(limit = 10): Promise<GuildRow[]> {
+    if (!this.client || !this.userId) return [];
+    const { data, error } = await this.client.rpc('guild_board', { p_limit: limit });
+    if (error) throw error;
+    return ((data ?? []) as { rank: number; name: string; emblem: string; members: number; points: number; is_mine: boolean; code: string | null }[])
+      .map((r) => ({ rank: Number(r.rank), name: r.name, emblem: isEmblem(r.emblem) ? r.emblem : '🌲', members: r.members, points: r.points, isMine: r.is_mine, code: r.code }));
   }
 
   async leaderboard(trailId: string, limit = 10): Promise<BoardRow[]> {

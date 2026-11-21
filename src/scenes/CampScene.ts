@@ -24,6 +24,8 @@ import { audio } from '../audio/audio';
 import { onlinePanelOpen, openOnlinePanel } from '../ui/onlinePanel';
 import { vkeys } from '../input/touch';
 import { COOP_URL } from '../net/coop';
+import { cloud } from '../net/cloud';
+import { applyVisits, STICKER_ICON } from '../core/visit';
 
 
 const TS = CONFIG.TILE;
@@ -109,6 +111,20 @@ export class CampScene extends Phaser.Scene {
     window.addEventListener('keydown', onKey);
     this.events.once('shutdown', () => { window.removeEventListener('keydown', onKey); this.scale.off('resize', zoom); this.scene.stop('campHud'); });
     this.scene.launch('campHud');
+    this.collectVisits();
+  }
+
+  /** Friends who visited while we were away: their watering and guestbook stickers. */
+  private collectVisits(): void {
+    if (!cloud.signedIn) return;
+    void cloud.takeVisits().then((visits) => {
+      if (!visits.length || !this.scene.isActive()) return;
+      const { watered } = applyVisits(this.profile, visits);
+      for (const v of visits.slice(-2)) this.toast(`${STICKER_ICON[v.sticker]} ${t('visit_got', { n: v.name, s: t('sticker_' + v.sticker) })}`);
+      if (visits.length > 2) this.toast(t('visit_got_more', { n: visits.length - 2 }));
+      if (watered) this.toast(t('visit_got_water', { n: watered }));
+      audio.sfx('chime'); this.redrawPlots(); this.save();
+    });
   }
 
   // ---------- helpers ----------

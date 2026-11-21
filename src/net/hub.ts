@@ -8,7 +8,7 @@ import type { CoopLook, Emote } from '../core/coop';
 import type { Dir } from '../core/hiker';
 import { COOP_URL } from './coop';
 
-export interface HubOther { id: string; name: string; title: string; look: CoopLook; x: number; y: number; tx: number; ty: number; dir: Dir; moving: boolean; emote: Emote | null; emoteT: number; frame?: number }
+export interface HubOther { id: string; name: string; title: string; look: CoopLook; camp: string | null; x: number; y: number; tx: number; ty: number; dir: Dir; moving: boolean; emote: Emote | null; emoteT: number; frame?: number }
 
 export type HubEvent =
   | { kind: 'joined' | 'left'; o: HubOther }
@@ -31,13 +31,13 @@ export class HubSession {
   private last = '';
 
   /** Connects and enters the plaza; resolves with our spawn point once the server has welcomed us. */
-  static join(token: string | null, name: string, title: string, look: CoopLook): Promise<{ hub: HubSession; x: number; y: number }> {
+  static join(token: string | null, name: string, title: string, look: CoopLook, camp: string | null): Promise<{ hub: HubSession; x: number; y: number }> {
     const s = new HubSession();
     return new Promise((resolve, reject) => {
       if (!COOP_URL) { reject(new Error('no server')); return; }
       const ws = s.ws = new WebSocket(COOP_URL);
       const timer = setTimeout(() => { ws.close(); reject(new Error('timeout')); }, 8000);
-      ws.onopen = () => s.send({ t: 'hub_join', token, name, title, look });
+      ws.onopen = () => s.send({ t: 'hub_join', token, name, title, look, camp });
       ws.onerror = () => { clearTimeout(timer); reject(new Error('connect')); };
       ws.onclose = () => { const was = s.status; s.status = 'closed'; if (was === 'live') s.onEvent({ kind: 'closed' }); };
       ws.onmessage = (ev) => {
@@ -56,8 +56,8 @@ export class HubSession {
     });
   }
 
-  private blank(p: { id: string; name: string; title: string; look: CoopLook; x: number; y: number }): HubOther {
-    return { ...p, tx: p.x, ty: p.y, dir: 'down', moving: false, emote: null, emoteT: 0 };
+  private blank(p: { id: string; name: string; title: string; look: CoopLook; x: number; y: number; camp?: string | null }): HubOther {
+    return { ...p, camp: p.camp ?? null, tx: p.x, ty: p.y, dir: 'down', moving: false, emote: null, emoteT: 0 };
   }
 
   private handle(m: HubServerMsg): void {

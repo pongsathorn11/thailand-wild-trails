@@ -19,7 +19,7 @@ export const SCALES = { maj: [0, 2, 4, 7, 9], min: [0, 3, 5, 7, 10] };
 /** Each trail plays the hike mood in its own key (offset in semitones, by trail order). */
 export const TRAIL_KEY_SHIFT = [0, -2, 2, -5, 3, -3];
 
-export type Screen = 'title' | 'camp' | 'hub' | 'pack' | 'hike' | 'none';
+export type Screen = 'title' | 'camp' | 'hub' | 'visit' | 'pack' | 'hike' | 'none';
 export const isNight = (hour: number): boolean => hour >= 19 || hour < 5;
 
 export function pickMood(screen: Screen, hour: number): MoodId {

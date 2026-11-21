@@ -42,10 +42,10 @@ export function hubJoin(ws: WebSocket, m: Extract<HubClientMsg, { t: 'hub_join' 
   let pl = plazas.find((q) => q.members.size < HUB_CAPACITY);
   if (!pl) { pl = { n: plazas.length + 1, members: new Map() }; plazas.push(pl); }
   const id = randomUUID().slice(0, 8), at = hubSpawn(pl.members.size);
-  const me: Member = { id, ws, userId, name: m.name, title: m.title, look: m.look, x: at.x, y: at.y, dir: 'up', moving: false, lastAt: Date.now() };
-  send(ws, { t: 'hub_welcome', id, x: at.x, y: at.y, players: [...pl.members.values()].map(({ id, name, title, look, x, y }) => ({ id, name, title, look, x, y })) });
+  const me: Member = { id, ws, userId, name: m.name, title: m.title, look: m.look, camp: m.camp, x: at.x, y: at.y, dir: 'up', moving: false, lastAt: Date.now() };
+  send(ws, { t: 'hub_welcome', id, x: at.x, y: at.y, players: [...pl.members.values()].map(({ id, name, title, look, x, y, camp }) => ({ id, name, title, look, x, y, camp })) });
   pl.members.set(id, me); everyone.set(id, me);
-  toPlaza(pl, { t: 'hub_joined', p: { id, name: me.name, title: me.title, look: me.look, x: me.x, y: me.y } }, id);
+  toPlaza(pl, { t: 'hub_joined', p: { id, name: me.name, title: me.title, look: me.look, x: me.x, y: me.y, camp: me.camp } }, id);
   send(ws, { t: 'parties', list: partyListings(book, nameOf) });
   return id;
 }

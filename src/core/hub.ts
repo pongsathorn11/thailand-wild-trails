@@ -11,6 +11,7 @@ import { COOP_MAX_PLAYERS, cleanLook, cleanName, cleanRoomCode, newRoomCode, EMO
 import { HUB } from '../data/hub';
 import { TRAILS } from '../data/trails';
 import type { Dir } from './hiker';
+import { cleanCampCode } from './visit';
 
 export const HUB_CAPACITY = 24;        // hikers per plaza; more open another plaza
 export const HUB_SNAPSHOT_HZ = 10;
@@ -135,13 +136,13 @@ export function departParty(b: PartyBook, pid: string): { r: PartyResult; party?
 }
 
 // ---------- protocol ----------
-export interface HubPlayer { id: string; name: string; look: CoopLook; title: string; x: number; y: number }
+export interface HubPlayer { id: string; name: string; look: CoopLook; title: string; x: number; y: number; /** camp code for visits (signed-in players) */ camp: string | null }
 export interface HubSnap { id: string; x: number; y: number; dir: Dir; moving: boolean }
 export interface PartyView { code: string; leader: string; trail: string; members: { id: string; name: string; ready: boolean }[] }
 export interface PartyListing { code: string; leaderName: string; trail: string; size: number }
 
 export type HubClientMsg =
-  | { t: 'hub_join'; token: string | null; name: string; title: string; look: CoopLook }
+  | { t: 'hub_join'; token: string | null; name: string; title: string; look: CoopLook; camp: string | null }
   | { t: 'pos'; x: number; y: number; dir: Dir; moving: boolean }
   | { t: 'hub_emote'; emote: Emote }
   | { t: 'party_new'; trail: string }
@@ -176,7 +177,7 @@ export function parseHubMsg(raw: unknown): HubClientMsg | null {
     case 'hub_join': {
       const token = typeof m.token === 'string' && m.token.length < 3000 ? m.token : null;
       const title = typeof m.title === 'string' && TITLE_RE.test(m.title) ? m.title : 'newbie';
-      return { t: 'hub_join', token, name: cleanName(m.name), title, look: cleanLook(m.look) };
+      return { t: 'hub_join', token, name: cleanName(m.name), title, look: cleanLook(m.look), camp: cleanCampCode(m.camp) };
     }
     case 'pos': {
       const x = Number(m.x), y = Number(m.y);

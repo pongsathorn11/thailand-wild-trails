@@ -11,6 +11,7 @@ import { hitButton, layoutButtons, STICK_RADIUS, stickDirs, touch, vkeys, type T
 import type { HikeScene } from './HikeScene';
 import type { CampScene } from './CampScene';
 import type { HubScene } from './HubScene';
+import type { VisitScene } from './VisitScene';
 import { C, FONT, TX, woodButton } from '../ui/theme';
 
 type Prefs = Profile & { sound?: boolean; music?: boolean };
@@ -55,6 +56,11 @@ export class SystemScene extends Phaser.Scene {
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.up(p));
     this.input.on('pointerupoutside', (p: Phaser.Input.Pointer) => this.up(p));
     this.game.events.on('blur', () => this.releaseAll());
+    // "Visit" in the Online panel: go to a friend's camp from camp, the plaza or the title screen (not mid-hike)
+    window.addEventListener('twt-visit', (e) => {
+      const code = (e as CustomEvent<string>).detail, from = (['camp', 'hub', 'visit', 'title', 'pack'] as const).find((k) => this.scene.isActive(k));
+      if (from && code) this.scene.get(from).scene.start('visit', { code });
+    });
   }
 
   // ---------- settings ----------
@@ -70,12 +76,13 @@ export class SystemScene extends Phaser.Scene {
 
   // ---------- which screen is showing ----------
   private screen(): Screen {
-    for (const k of ['hike', 'pack', 'camp', 'hub', 'title'] as const) if (this.scene.isActive(k)) return k;
+    for (const k of ['hike', 'pack', 'camp', 'hub', 'visit', 'title'] as const) if (this.scene.isActive(k)) return k;
     return 'none';
   }
   private get hike(): HikeScene { return this.scene.get('hike') as HikeScene; }
   private get camp(): CampScene { return this.scene.get('camp') as CampScene; }
   private get hub(): HubScene { return this.scene.get('hub') as HubScene; }
+  private get visit(): VisitScene { return this.scene.get('visit') as VisitScene; }
 
   // ---------- touch input ----------
   private press(code: string): void { window.dispatchEvent(new KeyboardEvent('keydown', { code })); }
@@ -134,10 +141,10 @@ export class SystemScene extends Phaser.Scene {
     // touch layout for this frame
     const IW = this.scale.width, IH = this.scale.height, g = this.g;
     g.clear(); this.used = 0;
-    const menu = (screen === 'camp' && !!this.camp.menu) || (screen === 'hike' && !!this.hike.journal) || (screen === 'hub' && !!this.hub.menu), build = screen === 'camp' && !!this.camp.build;
+    const menu = (screen === 'camp' && !!this.camp.menu) || (screen === 'hike' && !!this.hike.journal) || (screen === 'hub' && !!this.hub.menu) || (screen === 'visit' && !!this.visit.menu), build = screen === 'camp' && !!this.camp.build;
     const finished = hikeOn && this.hike.finished;
     touch.buttons = touch.enabled && !finished ? layoutButtons({ screen, menu, build, sound: p.sound !== false, music: p.music !== false, soundY: screen === 'title' ? (this.scene.get('title') as unknown as { soundY: number }).soundY || undefined : undefined }, IW, IH) : [];
-    const walk = touch.enabled && ((hikeOn && !finished && !this.hike.journal && !this.hike.bigMap) || (screen === 'camp' && !menu) || (screen === 'hub' && !menu && this.hub.status === 'live'));
+    const walk = touch.enabled && ((hikeOn && !finished && !this.hike.journal && !this.hike.bigMap) || (screen === 'camp' && !menu) || (screen === 'hub' && !menu && this.hub.status === 'live') || (screen === 'visit' && !menu && this.visit.status === 'live'));
     const hb = (this.scene.get('hud') as unknown as { hotbar?: { y: number } }).hotbar;
     const barY = screen === 'hike' && hb?.y ? hb.y - 8 : IH;
     touch.stickZone = walk ? (x, y) => x < IW * 0.55 && y > 70 && y < barY : null;
@@ -162,7 +169,7 @@ export class SystemScene extends Phaser.Scene {
       gibbon = h.trail.ambient === 'gibbon' && !night;
       crickets = night;
     } else if (screen === 'camp' || screen === 'pack') { lv.fire = 0.07; birds = 0.2; }
-    else if (screen === 'hub') { lv.fire = 0.05; birds = 0.3; }
+    else if (screen === 'hub' || screen === 'visit') { lv.fire = 0.05; birds = 0.3; }
     else if (screen === 'title') birds = 0.15;
     audio.ambience(lv, { birds, gibbon, crickets });
   }

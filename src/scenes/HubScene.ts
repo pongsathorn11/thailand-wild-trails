@@ -107,7 +107,7 @@ export class HubScene extends Phaser.Scene {
   private connect(): void {
     const p = this.profile, title = (p as Profile & { title?: string }).title ?? 'newbie';
     void cloud.accessToken()
-      .then((token) => HubSession.join(token, displayName(p, t('on_hiker')), title, { body: p.body, looks: p.looks[p.body] }))
+      .then((token) => HubSession.join(token, displayName(p, t('on_hiker')), title, { body: p.body, looks: p.looks[p.body] }, cloud.campCode))
       .then(({ hub, x, y }) => {
         if (!this.scene.isActive()) { hub.leave(); return; }
         this.hub = hub; this.status = 'live';
@@ -157,7 +157,11 @@ export class HubScene extends Phaser.Scene {
   toast(text: string): void { this.toasts.push({ text, t: 3.5 }); if (this.toasts.length > 3) this.toasts.shift(); }
 
   // ---------- interaction ----------
-  findTarget(): { type: HubSpotType; label: string } | null {
+  findTarget(): { type: HubSpotType | 'visit'; label: string; code?: string } | null {
+    // a hiker standing right next to you: visit their camp
+    let who: HubOther | null = null, wd = 22;
+    for (const o of this.hub?.others.values() ?? []) { const d = Math.hypot(this.pos.x - o.x, this.pos.y - o.y); if (o.camp && d < wd) { wd = d; who = o; } }
+    if (who) return { type: 'visit', label: t('hub_act_visit', { n: who.name }), code: who.camp! };
     let best: (typeof HUB.spots)[number] | null = null, bd = Infinity;
     for (const s of HUB.spots) {
       const wide = s.type === 'info' || s.type === 'cafe';
@@ -167,8 +171,9 @@ export class HubScene extends Phaser.Scene {
     return best ? { type: best.type, label: t('hub_act_' + best.type) } : null;
   }
 
-  private use(type: HubSpotType): void {
+  private use(type: HubSpotType | 'visit', code?: string): void {
     audio.sfx('select');
+    if (type === 'visit' && code) { this.leaving = true; this.scene.start('visit', { code }); return; }
     if (type === 'partyBoard' || type === 'gate') this.menu = { type: 'party', sel: 0 };
     else if (type === 'info') this.menu = { type: 'info', sel: 0 };
     else if (type === 'cafe') { this.emote('rest'); this.toast(t('hub_cafe')); }
@@ -269,7 +274,7 @@ export class HubScene extends Phaser.Scene {
     if (code === 'KeyI') { audio.sfx('select'); this.menu = { type: 'info', sel: 0 }; return; }
     const ei = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(code);
     if (ei >= 0) { this.emote(EMOTES[ei]); return; }
-    if (code === 'KeyE' || code === 'Space') { const tg = this.findTarget(); if (tg) this.use(tg.type); }
+    if (code === 'KeyE' || code === 'Space') { const tg = this.findTarget(); if (tg) this.use(tg.type, tg.code); }
   }
 
   update(_t: number, deltaMs: number): void {

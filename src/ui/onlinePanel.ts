@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { cloud, type BoardRow } from '../net/cloud';
 import { COOP_URL, coopPlan } from '../net/coop';
 import { cleanRoomCode, newRoomCode } from '../core/coop';
+import { cleanCampCode, guestbook, STICKER_ICON } from '../core/visit';
 import { authPageOpen, openAuthPage } from './authPage';
 
 const CSS = `
@@ -37,7 +38,7 @@ const CSS = `
 #twt-online td.num{text-align:right;font-variant-numeric:tabular-nums}
 `;
 
-let root: HTMLDivElement | null = null, tab: 'account' | 'board' | 'coop' = 'account', trailId = TRAILS[0].id, onClose: (() => void) | null = null;
+let root: HTMLDivElement | null = null, tab: 'account' | 'board' | 'coop' | 'visit' = 'account', trailId = TRAILS[0].id, onClose: (() => void) | null = null;
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, kids: (Node | string)[] = []): HTMLElementTagNameMap[K] => {
   const e = Object.assign(document.createElement(tag), props);
@@ -74,13 +75,13 @@ function render(): void {
   const close = el('button', { className: 'x', textContent: '✕', title: t('on_close') }); close.onclick = closeOnlinePanel;
   card.append(el('h2', {}, [t('on_title'), close]));
   const tabs = el('div', { className: 'tabs' });
-  for (const [id, key] of [['account', 'on_tab_account'], ['board', 'on_tab_board'], ['coop', 'coop_tab']] as const) {
+  for (const [id, key] of [['account', 'on_tab_account'], ['board', 'on_tab_board'], ['coop', 'coop_tab'], ['visit', 'visit_tab']] as const) {
     const b = el('button', { textContent: t(key), className: tab === id ? 'on' : '' });
     b.onclick = () => { tab = id; render(); };
     tabs.append(b);
   }
   card.append(tabs);
-  if (tab === 'account') accountView(card); else if (tab === 'board') boardView(card); else coopView(card);
+  if (tab === 'account') accountView(card); else if (tab === 'board') boardView(card); else if (tab === 'visit') visitView(card); else coopView(card);
   root.replaceChildren(card);
   if (focusId) document.getElementById(focusId)?.focus();
 }
@@ -135,6 +136,36 @@ function boardView(card: HTMLElement): void {
     }
     box.replaceWith(table);
   }).catch((e: Error) => { if (box.isConnected) box.textContent = t('on_err', { m: e.message }); });
+}
+
+function visitView(card: HTMLElement): void {
+  if (cloud.status === 'off') { card.append(el('div', { className: 'status', textContent: t('on_off') })); return; }
+  if (!cloud.signedIn) { card.append(el('div', { className: 'status', textContent: t('visit_needSignIn') })); return; }
+  card.append(el('label', { textContent: t('visit_myCode') }));
+  card.append(el('div', { className: 'code', textContent: cloud.campCode ?? '······' }));
+  if (!cloud.campCode) void cloud.publishCamp().then((c) => { if (c && root) render(); });
+  const code = el('input', { id: 'twt-camp', className: 'codeIn', maxLength: 7, placeholder: 'ABC234', autocomplete: 'off' });
+  const go = el('button', { className: 'go', textContent: t('visit_go') }), msg = el('div', { className: 'msg' });
+  go.onclick = () => {
+    const c = cleanCampCode(code.value);
+    if (!c) { msg.textContent = t('visit_badCode'); return; }
+    if (c === cloud.campCode) { msg.textContent = t('visit_err_self'); return; }
+    closeOnlinePanel(); window.dispatchEvent(new CustomEvent('twt-visit', { detail: c }));
+  };
+  code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
+  card.append(el('label', { htmlFor: 'twt-camp', textContent: t('visit_friendCode') }), code, el('div', { className: 'row' }, [go]), msg);
+  const book = guestbook(cloud.currentProfile());
+  card.append(el('label', { textContent: t('visit_guestbook', { n: book.length }) }));
+  if (!book.length) card.append(el('div', { className: 'note', textContent: t('visit_guestbook_empty') }));
+  else {
+    const list = el('table', {});
+    for (const e of book.slice(0, 12)) list.append(el('tr', {}, [
+      el('td', { textContent: STICKER_ICON[e.sticker] }), el('td', { textContent: e.name }),
+      el('td', { textContent: t('sticker_' + e.sticker) + (e.watered ? ' · 💧' : '') }),
+    ]));
+    card.append(list);
+  }
+  card.append(el('div', { className: 'note', textContent: t('visit_how') }));
 }
 
 function coopView(card: HTMLElement): void {

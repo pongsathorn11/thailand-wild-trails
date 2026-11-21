@@ -15,6 +15,7 @@ describe('touch controls', () => {
     expect(ids({ screen: 'camp', menu: true })).toEqual(['snd', 'mus', 'up', 'down', 'left', 'right', 'ok', 'back']);
     expect(ids({ screen: 'pack' })).toContain('ok');
     expect(ids({ screen: 'camp' })).toContain('hub');
+    expect(ids({ screen: 'visit' })).toEqual(['snd', 'mus', 'act', 'run', 'home']);
     expect(ids({ screen: 'hub' })).toEqual(['snd', 'mus', 'act', 'run', 'party', 'info', 'wave', 'rest', 'home']);
     expect(ids({ screen: 'hub', menu: true })).toEqual(['snd', 'mus', 'up', 'down', 'left', 'right', 'ok', 'back']);
   });

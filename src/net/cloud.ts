@@ -8,6 +8,7 @@ import { displayName, pickSave, readRemoteSave, saveFitsCloud } from '../core/cl
 import { saveListeners, saveProfile, type Profile } from '../core/profile';
 import { t } from '../i18n';
 import { authErrorKey, oauthError, stripOauthError } from '../core/auth';
+import { campCard, cleanCampCard, isSticker, type CampCard, type Sticker, type Visit } from '../core/visit';
 
 export type CloudStatus = 'off' | 'signedOut' | 'syncing' | 'synced' | 'error';
 export interface BoardRow { rank: number; display_name: string; best_time_sec: number; is_me: boolean }
@@ -36,12 +37,17 @@ class Cloud {
   private replaceProfile: (p: Profile) => void = () => {};
   private timer: ReturnType<typeof setTimeout> | null = null;
   private applying = false;
+  /** This player's camp code (from publish_camp), shown so friends can visit. */
+  campCode: string | null = null;
+  private lastCard = '';
   /** Auth events (SIGNED_IN, PASSWORD_RECOVERY, …) for screens that open themselves, like the log-in page. */
   readonly authListeners: ((event: string) => void)[] = [];
   /** UI re-renders when this fires. */
   onChange: () => void = () => {};
 
   get signedIn(): boolean { return !!this.userId; }
+  /** The live profile (for panels outside the Phaser scenes). */
+  currentProfile(): Profile { return this.getProfile(); }
 
   /** Wires the cloud to the game's profile and restores a previous session if there is one. */
   async start(getProfile: () => Profile, replaceProfile: (p: Profile) => void): Promise<void> {
@@ -54,6 +60,7 @@ class Cloud {
     this.client.auth.onAuthStateChange((event, session) => {
       const uid = session?.user.id ?? null, changed = uid !== this.userId;
       this.userId = uid;
+      if (changed) { this.campCode = null; this.lastCard = ''; }
       this.email = session?.user.email ?? null;
       this.guest = !!session?.user.is_anonymous;
       this.provider = (session?.user.app_metadata?.provider as string | undefined) ?? null;
@@ -157,6 +164,7 @@ class Cloud {
         this.message = t('on_pushed');
       }
       await this.submitScores();
+      await this.publishCamp();
       this.status = 'synced'; this.lastSync = new Date(); this.emit();
     } catch (e) { this.fail(e); }
   }
@@ -164,7 +172,7 @@ class Cloud {
   private scheduleUpload(): void {
     if (!this.userId) return;
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => { this.timer = null; void this.upload().then(() => this.submitScores()).catch((e) => this.fail(e)); }, UPLOAD_DELAY_MS);
+    this.timer = setTimeout(() => { this.timer = null; void this.upload().then(() => this.submitScores()).then(() => this.publishCamp()).catch((e) => this.fail(e)); }, UPLOAD_DELAY_MS);
   }
 
   private async upload(): Promise<void> {
@@ -197,6 +205,43 @@ class Cloud {
     if (!this.client || !this.userId) return null;
     const { data } = await this.client.auth.getSession();
     return data.session?.access_token ?? null;
+  }
+
+  // ---------- visiting camps ----------
+  /** Publishes this player's camp card (only when it changed) and learns their camp code. */
+  async publishCamp(): Promise<string | null> {
+    if (!this.client || !this.userId) return null;
+    const card = campCard(this.getProfile()), key = JSON.stringify(card);
+    if (key === this.lastCard && this.campCode) return this.campCode;
+    const { data, error } = await this.client.rpc('publish_camp', { p_card: card });
+    if (error) return this.campCode;
+    this.lastCard = key; this.campCode = data as string; this.emit();
+    return this.campCode;
+  }
+
+  /** A friend's camp by code: null when the code is unknown, isMe when it is your own. */
+  async getCamp(code: string): Promise<{ card: CampCard; isMe: boolean } | null> {
+    if (!this.client || !this.userId) throw new Error('auth');
+    const { data, error } = await this.client.rpc('get_camp', { p_code: code });
+    if (error) throw error;
+    const row = (data as { card: unknown; is_me: boolean }[] | null)?.[0], card = row && cleanCampCard(row.card);
+    return card ? { card, isMe: row!.is_me } : null;
+  }
+
+  /** Leaves a sticker (and maybe watering): 'ok' | 'none' | 'self' | 'already' | 'error'. */
+  async leaveVisit(code: string, sticker: Sticker, water: boolean): Promise<string> {
+    if (!this.client || !this.userId) return 'error';
+    const { data, error } = await this.client.rpc('leave_visit', { p_code: code, p_sticker: sticker, p_water: water, p_name: displayName(this.getProfile(), t('on_hiker')) });
+    return error ? 'error' : String(data);
+  }
+
+  /** Collects the visits friends left at this camp (the server clears them). */
+  async takeVisits(): Promise<Visit[]> {
+    if (!this.client || !this.userId) return [];
+    const { data, error } = await this.client.rpc('take_visits');
+    if (error || !Array.isArray(data)) return [];
+    return (data as { visitor_name: string; sticker: string; watered: boolean; created_at: string }[])
+      .filter((v) => isSticker(v.sticker)).map((v) => ({ name: v.visitor_name, sticker: v.sticker as Sticker, watered: !!v.watered, at: v.created_at }));
   }
 
   async leaderboard(trailId: string, limit = 10): Promise<BoardRow[]> {

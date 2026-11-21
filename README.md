@@ -76,6 +76,7 @@ Rules of the codebase (from the original brief, section 22):
 | M8a Online | Supabase accounts (email + password, guest), cloud save that never loses progress, per-trail leaderboard written only through a validating database function | ✅ |
 | M8b Co-op | hike together (rooms of 4, room codes) on a Node WebSocket game server that moves everyone with the shared `src/core` code; client prediction with correction; server-timed leaderboard runs | ✅ |
 | M10 Social Hub | shared plaza on the game server (H from camp): see other hikers live, emotes, party board, parties of 4 (leader picks the trail, everyone readies, all set off into one co-op room), park info centre with real distances | ✅ (needs the game server) |
+| M11 Visiting camps | camp cards with a 6-character camp code, visit a friend's camp (also offline), guestbook stickers once a day, help water their garden; from the Online panel (Visit tab) or by walking up to someone in the plaza | ✅ |
 | UI v2 | wood & paper pixel UI on every screen (HUDs, menus, pack, title, online panel, touch buttons), clickable camp action bar (T hike), journal as an open book (also on the trail: J), big map (Tab), pause (P), HUD warnings, trail switch on the pack screen (Q/E), phone layout fixes | ✅ |
 | M11 Stories + events | three camp NPCs (ranger Uncle Kham, cook Auntie Daeng, photographer Fah) with 3-chapter storylines, friendship hearts and story titles; seasonal events on the in-game calendar (Sea of Mist Festival, Hiking Festival, Planting Season) with goals, festival stamps, more fog / bonus photo EXP; rules in `src/core/story.ts`, content in `src/data/story.ts`, text in `src/i18n/story.ts` | ✅ |
 | M12 Central + East trails | Khao Yai: Haew Narok walk (Nakhon Nayok side = Central; bridge over Huay Samor Poon, steep steps to the viewpoint, wild elephants seen from afar), Khao Chamao (Rayong, East): 8-tier waterfall with soro brook carp; every region now has a trail; trail ids kept in one database function | ✅ |
@@ -148,6 +149,21 @@ Up to 24 hikers per plaza; more open another one.
   make and that don't end in trees, stalls or benches, and snaps cheaters back. Party commands are checked on the server
   (only the leader changes the trail or sets off; a party never goes over 4). Rules: `src/core/hub.ts` (tested); server: `server/hub-server.ts`.
 - Sign-in works the same as co-op (Supabase token; `COOP_ALLOW_GUESTS=1` for local tests).
+
+## Visiting a friend's camp
+
+Signed-in players publish a small **camp card** (name, look, title, level, furniture, garden) whenever their save uploads,
+and get a 6-character **camp code**. Online panel (**O**) → 🏕️ *Visit* shows your code, takes a friend's code and lists your guestbook.
+In the plaza, walk up to another hiker and press **E** to go to their camp.
+
+- In a friend's camp you walk around their decorations and garden, talk to them by the fire to **sign the guestbook**
+  (8 fixed stickers, no free text, so nothing to moderate), and can **water** their thirsty plots.
+- One visit per friend per day (enforced by the database). The owner's game collects visits next time they are in camp:
+  watering is applied, stickers go to the guestbook (last 30 kept), and toasts say who came by.
+- Nothing about it gives coins or items, so it can't be farmed (no Pay-to-Win, no trading).
+- Database: `supabase/migrations/0004_camp_visits.sql`. `camp_cards` and `camp_visits` have no direct access for other players;
+  `publish_camp()`, `get_camp()`, `leave_visit()` and `take_visits()` are the only way in and never return user ids.
+  Rules and card cleaning: `src/core/visit.ts` (tested). Scene: `src/scenes/VisitScene.ts`.
 
 ## Hosting
 

@@ -9,7 +9,10 @@ import { TitleScene } from './scenes/TitleScene';
 import { SystemScene } from './scenes/SystemScene';
 import { HubScene } from './scenes/HubScene';
 import { HubHudScene } from './scenes/HubHudScene';
+import { VisitScene } from './scenes/VisitScene';
+import { VisitHudScene } from './scenes/VisitHudScene';
 import { audio } from './audio/audio';
+import { cloud } from './net/cloud';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -18,8 +21,8 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [BootScene, TitleScene, CampScene, CampHudScene, HubScene, HubHudScene, PackScene, HikeScene, HudScene, SystemScene],
+  scene: [BootScene, TitleScene, CampScene, CampHudScene, HubScene, HubHudScene, VisitScene, VisitHudScene, PackScene, HikeScene, HudScene, SystemScene],
 });
 
 // handy in the browser console while developing: __game.scene.getScene('hike')
-if (import.meta.env.DEV) Object.assign(window, { __game: game, __audio: audio });
+if (import.meta.env.DEV) Object.assign(window, { __game: game, __audio: audio, __cloud: cloud });
